@@ -119,7 +119,7 @@ export function isProviderAvailable(provider: AgentProvider): boolean {
       return isCommandAvailable("opencode");
     case "pi":
       return (
-        isCommandAvailable(process.env.PI_ACP_PI_COMMAND ?? "pi") &&
+        isCommandAvailable(process.env.PI_COMMAND ?? process.env.PI_ACP_PI_COMMAND ?? "pi") &&
         (Boolean(process.env.OPENAI_API_KEY) ||
           Boolean(process.env.ANTHROPIC_API_KEY) ||
           Boolean(process.env.OPENROUTER_API_KEY) ||
