@@ -129,6 +129,25 @@ exports.default = async function afterPack(context) {
 
   pruneNativeModules(context.appOutDir, platform, arch);
 
+  // Re-sign macOS app with deep flag to fix Team ID issues
+  if (platform === "darwin") {
+    const { execSync } = require("child_process");
+    const appPath = path.join(context.appOutDir, `${EXECUTABLE_NAME}.app`);
+    const executablePath = path.join(appPath, "Contents", "MacOS", EXECUTABLE_NAME);
+
+    try {
+      // Ensure executable has correct permissions
+      fs.chmodSync(executablePath, 0o755);
+
+      // Re-sign with deep flag to sign all nested frameworks
+      execSync(`codesign --force --deep --sign - "${appPath}"`, { stdio: "inherit" });
+      console.log("Re-signed macOS app with --deep flag");
+    } catch (err) {
+      console.warn("Failed to re-sign macOS app:", err.message);
+    }
+    return;
+  }
+
   if (platform !== "linux") return;
 
   const chromeSandbox = path.join(context.appOutDir, "chrome-sandbox");

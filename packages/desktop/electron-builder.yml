@@ -23,7 +23,8 @@ mac:
   category: public.app-category.developer-tools
   icon: assets/icon.icns
   hardenedRuntime: true
-  notarize: true
+  notarize: false
+  identity: null
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.inherit.plist
   extraResources:
@@ -32,6 +33,9 @@ mac:
   target:
     - dmg
     - zip
+dmg:
+  sign: false
+  writeUpdateInfo: false
 linux:
   category: Development
   icon: assets
