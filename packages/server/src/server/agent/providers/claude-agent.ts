@@ -43,6 +43,7 @@ import {
   formatProviderDiagnosticError,
   toDiagnosticErrorMessage,
 } from "./diagnostic-utils.js";
+import { loadClaudeConfigEnv, mergeClaudeEnv } from "./claude/config-loader.js";
 
 import type {
   AgentPermissionAction,
@@ -2100,6 +2101,11 @@ class ClaudeAgentSession implements AgentSession {
       },
       "Resolved Claude executable",
     );
+
+    // Load environment variables from Claude's settings.json if not set in process.env
+    const claudeConfigEnv = await loadClaudeConfigEnv();
+    const mergedEnv = mergeClaudeEnv(process.env, claudeConfigEnv);
+
     const base: ClaudeOptions = {
       cwd: this.config.cwd,
       includePartialMessages: true,
@@ -2124,7 +2130,7 @@ class ClaudeAgentSession implements AgentSession {
         this.logger.error({ stderr: data.trim() }, "Claude Agent SDK stderr");
       },
       env: {
-        ...process.env,
+        ...mergedEnv,
         // Increase MCP timeouts for long-running tool calls (10 minutes)
         MCP_TIMEOUT: "600000",
         MCP_TOOL_TIMEOUT: "600000",
