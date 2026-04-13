@@ -51,3 +51,42 @@ export function mergeClaudeEnv(
 
   return merged;
 }
+
+/**
+ * Resolve the default model ID from environment variables.
+ * Checks ANTHROPIC_DEFAULT_*_MODEL variables that Claude Code uses.
+ *
+ * Priority:
+ * 1. Explicit model ID passed in
+ * 2. ANTHROPIC_DEFAULT_OPUS_MODEL (for opus family)
+ * 3. ANTHROPIC_DEFAULT_SONNET_MODEL (for sonnet family)
+ * 4. ANTHROPIC_DEFAULT_HAIKU_MODEL (for haiku family)
+ *
+ * @param requestedModel - The model ID requested (e.g., "claude-opus-4-6")
+ * @param env - Environment variables (merged from process.env and config)
+ * @returns The resolved model ID, or the original if no override found
+ */
+export function resolveClaudeModelFromEnv(
+  requestedModel: string | undefined,
+  env: Record<string, string | undefined>,
+): string | undefined {
+  if (!requestedModel) {
+    return undefined;
+  }
+
+  // Extract model family from the requested model ID
+  const familyMatch = requestedModel.match(/claude-(opus|sonnet|haiku)/i);
+  if (!familyMatch) {
+    return requestedModel;
+  }
+
+  const family = familyMatch[1]!.toUpperCase();
+  const envKey = `ANTHROPIC_DEFAULT_${family}_MODEL`;
+  const override = env[envKey];
+
+  if (override && typeof override === "string" && override.trim().length > 0) {
+    return override.trim();
+  }
+
+  return requestedModel;
+}

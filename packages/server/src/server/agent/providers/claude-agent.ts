@@ -43,7 +43,11 @@ import {
   formatProviderDiagnosticError,
   toDiagnosticErrorMessage,
 } from "./diagnostic-utils.js";
-import { loadClaudeConfigEnv, mergeClaudeEnv } from "./claude/config-loader.js";
+import {
+  loadClaudeConfigEnv,
+  mergeClaudeEnv,
+  resolveClaudeModelFromEnv,
+} from "./claude/config-loader.js";
 
 import type {
   AgentPermissionAction,
@@ -2151,7 +2155,8 @@ class ClaudeAgentSession implements AgentSession {
     }
 
     if (this.config.model) {
-      base.model = this.config.model;
+      // Resolve model from environment variables (e.g., ANTHROPIC_DEFAULT_OPUS_MODEL)
+      base.model = resolveClaudeModelFromEnv(this.config.model, mergedEnv);
     }
     this.lastOptionsModel = base.model ?? null;
     if (this.claudeSessionId) {

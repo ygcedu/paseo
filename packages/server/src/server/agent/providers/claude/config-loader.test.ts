@@ -3,7 +3,7 @@ import { writeFile, mkdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "os";
-import { loadClaudeConfigEnv, mergeClaudeEnv } from "./config-loader.js";
+import { loadClaudeConfigEnv, mergeClaudeEnv, resolveClaudeModelFromEnv } from "./config-loader.js";
 
 describe("config-loader", () => {
   let tempDir: string;
@@ -148,6 +148,83 @@ describe("config-loader", () => {
       const result = mergeClaudeEnv(processEnv, configEnv);
 
       expect(result.ANTHROPIC_API_KEY).toBe("sk-config-key");
+    });
+  });
+
+  describe("resolveClaudeModelFromEnv", () => {
+    it("should return undefined when no model is provided", () => {
+      const result = resolveClaudeModelFromEnv(undefined, {});
+      expect(result).toBeUndefined();
+    });
+
+    it("should return original model when no env override exists", () => {
+      const result = resolveClaudeModelFromEnv("claude-opus-4-6", {});
+      expect(result).toBe("claude-opus-4-6");
+    });
+
+    it("should resolve opus model from ANTHROPIC_DEFAULT_OPUS_MODEL", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "coding",
+      };
+      const result = resolveClaudeModelFromEnv("claude-opus-4-6", env);
+      expect(result).toBe("coding");
+    });
+
+    it("should resolve sonnet model from ANTHROPIC_DEFAULT_SONNET_MODEL", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_SONNET_MODEL: "my-sonnet-model",
+      };
+      const result = resolveClaudeModelFromEnv("claude-sonnet-4-6", env);
+      expect(result).toBe("my-sonnet-model");
+    });
+
+    it("should resolve haiku model from ANTHROPIC_DEFAULT_HAIKU_MODEL", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: "fast-model",
+      };
+      const result = resolveClaudeModelFromEnv("claude-haiku-4-5", env);
+      expect(result).toBe("fast-model");
+    });
+
+    it("should handle case-insensitive model family matching", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "coding",
+      };
+      const result = resolveClaudeModelFromEnv("claude-OPUS-4-6", env);
+      expect(result).toBe("coding");
+    });
+
+    it("should ignore empty string overrides", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "  ",
+      };
+      const result = resolveClaudeModelFromEnv("claude-opus-4-6", env);
+      expect(result).toBe("claude-opus-4-6");
+    });
+
+    it("should trim whitespace from override values", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "  coding  ",
+      };
+      const result = resolveClaudeModelFromEnv("claude-opus-4-6", env);
+      expect(result).toBe("coding");
+    });
+
+    it("should return original model for non-claude model IDs", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "coding",
+      };
+      const result = resolveClaudeModelFromEnv("gpt-4", env);
+      expect(result).toBe("gpt-4");
+    });
+
+    it("should only override the matching family", () => {
+      const env = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "opus-override",
+        ANTHROPIC_DEFAULT_SONNET_MODEL: "sonnet-override",
+      };
+      const result = resolveClaudeModelFromEnv("claude-opus-4-6", env);
+      expect(result).toBe("opus-override");
     });
   });
 });
