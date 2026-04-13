@@ -72,12 +72,14 @@ export function findExecutableSync(
           windowsHide: true,
         })
         .trim();
-      return (
-        out
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .find((line) => line.length > 0) ?? null
-      );
+      const lines = out
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      // Prefer .cmd or .exe files over shell scripts without extensions
+      const preferred = lines.find((line) => /\.(cmd|exe|bat)$/i.test(line));
+      return preferred ?? lines[0] ?? null;
     } catch {
       return null;
     }
@@ -114,13 +116,15 @@ export async function findExecutable(name: string): Promise<string | null> {
         encoding: "utf8",
         windowsHide: true,
       });
-      return (
-        stdout
-          .trim()
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .find((line) => line.length > 0) ?? null
-      );
+      const lines = stdout
+        .trim()
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      // Prefer .cmd or .exe files over shell scripts without extensions
+      const preferred = lines.find((line) => /\.(cmd|exe|bat)$/i.test(line));
+      return preferred ?? lines[0] ?? null;
     } catch {
       return null;
     }
