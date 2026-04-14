@@ -220,8 +220,19 @@ function applyRuntimeSettingsToClaudeOptions(
       // When the SDK passes a native binary path (from pathToClaudeCodeExecutable)
       // or the user overrides the command via runtime settings, use that directly.
       const isDefaultRuntime = resolved.command === "node" || resolved.command === "bun";
-      const command = isDefaultRuntime ? process.execPath : resolved.command;
-      const child = spawnProcess(command, resolved.args, {
+      let command = isDefaultRuntime ? process.execPath : resolved.command;
+      let args = resolved.args;
+      let useShell = false;
+
+      // On Windows, .cmd files cannot be spawned directly with shell: false.
+      // Wrap them in cmd.exe /c to avoid EINVAL errors.
+      if (process.platform === "win32" && /\.cmd$/i.test(command)) {
+        args = ["/c", command, ...args];
+        command = "cmd.exe";
+        useShell = false; // cmd.exe is a native binary, no shell needed
+      }
+
+      const child = spawnProcess(command, args, {
         cwd: spawnOptions.cwd,
         env: {
           ...applyProviderEnv(spawnOptions.env, runtimeSettings),
@@ -232,7 +243,8 @@ function applyRuntimeSettingsToClaudeOptions(
         // Bypass cmd.exe on Windows: the SDK passes --mcp-config with inline JSON
         // containing double quotes, which cmd.exe mangles (strips quotes, breaks parsing).
         // The command is always a resolved binary path, so shell routing is unnecessary.
-        shell: false,
+        // Exception: when we explicitly wrap .cmd files above, we use cmd.exe directly.
+        shell: useShell,
       });
       if (typeof options.stderr === "function") {
         child.stderr?.on("data", (chunk: Buffer | string) => {
