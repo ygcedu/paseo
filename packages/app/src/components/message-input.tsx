@@ -238,6 +238,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
     null,
   );
   const isInputFocusedRef = useRef(false);
+  const isComposingRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -882,6 +883,14 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
 
   const shouldHandleDesktopSubmit = IS_WEB;
 
+  function handleCompositionStart() {
+    isComposingRef.current = true;
+  }
+
+  function handleCompositionEnd() {
+    isComposingRef.current = false;
+  }
+
   function handleDesktopKeyPress(event: WebTextInputKeyPressEvent) {
     markScrollInvestigationEvent(investigationComponentId, "keyPress");
     if (!shouldHandleDesktopSubmit) return;
@@ -896,8 +905,20 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
     }
 
     const { shiftKey, metaKey, ctrlKey } = event.nativeEvent;
+    const nativeEvent = event.nativeEvent as unknown as {
+      isComposing?: boolean;
+      keyCode?: number;
+      which?: number;
+    };
 
     if (event.nativeEvent.key !== "Enter") return;
+
+    // Don't submit if IME composition is in progress (e.g., Chinese input)
+    // Check both the ref and the native event's isComposing property
+    // Also check keyCode: 229 is the IME composition keyCode
+    if (isComposingRef.current || nativeEvent.isComposing || nativeEvent.keyCode === 229) {
+      return;
+    }
 
     // Shift+Enter: add newline (default behavior, don't intercept)
     if (shiftKey) return;
@@ -1016,6 +1037,10 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
             onKeyPress={shouldHandleDesktopSubmit ? handleDesktopKeyPress : undefined}
             onSelectionChange={handleSelectionChange}
             autoFocus={IS_WEB && autoFocus}
+            {...(IS_WEB && {
+              onCompositionStart: handleCompositionStart,
+              onCompositionEnd: handleCompositionEnd,
+            })}
           />
           {inputScrollbar}
         </View>

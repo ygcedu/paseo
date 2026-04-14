@@ -22,11 +22,11 @@ mac:
   artifactName: "Paseo-${version}-${arch}.${ext}"
   category: public.app-category.developer-tools
   icon: assets/icon.icns
-  hardenedRuntime: true
+  hardenedRuntime: false
   notarize: false
   identity: null
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.inherit.plist
+  signIgnore:
+    - "**/*"
   extraResources:
     - from: bin/paseo
       to: bin/paseo
