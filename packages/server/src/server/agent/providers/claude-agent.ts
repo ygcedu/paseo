@@ -1179,10 +1179,8 @@ export class ClaudeAgentClient implements AgentClient {
 
       // If binary exists but no API key, provide helpful message
       if (resolvedBinary !== "not found" && !hasApiKey) {
-        const configPath =
-          process.platform === "win32"
-            ? "%USERPROFILE%\\.claude\\settings.json"
-            : "~/.claude/settings.json";
+        const configDir = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
+        const configPath = path.join(configDir, "settings.json");
         status = `❌ Not available - API key not configured. Add ANTHROPIC_API_KEY to ${configPath} under "env" section, or set it as an environment variable.`;
       }
 
