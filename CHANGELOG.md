@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.57 - 2026-04-14
+
+### Fixed
+- Windows: Claude Code agents now start correctly — fixed spawn error when the executable is a .cmd file.
+
+## 0.1.56 - 2026-04-14
+
+(Internal release - version bump only)
+
 ## 0.1.55 - 2026-04-14
 
 ### Fixed
