@@ -1149,16 +1149,42 @@ export class ClaudeAgentClient implements AgentClient {
     if (command?.mode === "replace") {
       return fs.existsSync(command.argv[0]);
     }
-    return true;
+
+    // Check if Claude Code executable is available
+    const claudeBinary = await findExecutable("claude");
+    if (!claudeBinary) {
+      return false;
+    }
+
+    // Check if API key is configured (either in env or settings.json)
+    const claudeConfigEnv = await loadClaudeConfigEnv();
+    const mergedEnv = mergeClaudeEnv(process.env, claudeConfigEnv);
+    const hasApiKey =
+      Boolean(mergedEnv.ANTHROPIC_API_KEY) || Boolean(mergedEnv.CLAUDE_CODE_OAUTH_TOKEN);
+
+    return hasApiKey;
   }
 
   async getDiagnostic(): Promise<{ diagnostic: string }> {
     try {
       const resolvedBinary = (await findExecutable("claude")) ?? "not found";
+      const claudeConfigEnv = await loadClaudeConfigEnv();
+      const mergedEnv = mergeClaudeEnv(process.env, claudeConfigEnv);
+      const hasApiKey =
+        Boolean(mergedEnv.ANTHROPIC_API_KEY) || Boolean(mergedEnv.CLAUDE_CODE_OAUTH_TOKEN);
       const available = await this.isAvailable();
       const version = await resolveClaudeVersion(this.runtimeSettings);
       let modelsValue = "Not checked";
       let status = formatDiagnosticStatus(available);
+
+      // If binary exists but no API key, provide helpful message
+      if (resolvedBinary !== "not found" && !hasApiKey) {
+        const configPath =
+          process.platform === "win32"
+            ? "%USERPROFILE%\\.claude\\settings.json"
+            : "~/.claude/settings.json";
+        status = `❌ Not available - API key not configured. Add ANTHROPIC_API_KEY to ${configPath} under "env" section, or set it as an environment variable.`;
+      }
 
       if (available) {
         try {
@@ -1177,6 +1203,7 @@ export class ClaudeAgentClient implements AgentClient {
         diagnostic: formatProviderDiagnostic("Claude Code", [
           { label: "Binary", value: resolvedBinary },
           ...(version ? [{ label: "Version", value: version }] : []),
+          { label: "API Key", value: hasApiKey ? "✓ Configured" : "✗ Not configured" },
           { label: "Models", value: modelsValue },
           { label: "Status", value: status },
         ]),
