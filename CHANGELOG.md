@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.55 - 2026-04-14
+
+### Fixed
+- Input method (IME) candidates no longer trigger message submission — pressing Enter to confirm Chinese, Japanese, or Korean input now works correctly without accidentally sending the message.
+
 ## 0.1.54 - 2026-04-12
 
 ### Added
