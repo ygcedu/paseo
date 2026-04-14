@@ -1160,7 +1160,9 @@ export class ClaudeAgentClient implements AgentClient {
     const claudeConfigEnv = await loadClaudeConfigEnv();
     const mergedEnv = mergeClaudeEnv(process.env, claudeConfigEnv);
     const hasApiKey =
-      Boolean(mergedEnv.ANTHROPIC_API_KEY) || Boolean(mergedEnv.CLAUDE_CODE_OAUTH_TOKEN);
+      Boolean(mergedEnv.ANTHROPIC_API_KEY) ||
+      Boolean(mergedEnv.ANTHROPIC_AUTH_TOKEN) ||
+      Boolean(mergedEnv.CLAUDE_CODE_OAUTH_TOKEN);
 
     return hasApiKey;
   }
@@ -1171,7 +1173,9 @@ export class ClaudeAgentClient implements AgentClient {
       const claudeConfigEnv = await loadClaudeConfigEnv();
       const mergedEnv = mergeClaudeEnv(process.env, claudeConfigEnv);
       const hasApiKey =
-        Boolean(mergedEnv.ANTHROPIC_API_KEY) || Boolean(mergedEnv.CLAUDE_CODE_OAUTH_TOKEN);
+        Boolean(mergedEnv.ANTHROPIC_API_KEY) ||
+        Boolean(mergedEnv.ANTHROPIC_AUTH_TOKEN) ||
+        Boolean(mergedEnv.CLAUDE_CODE_OAUTH_TOKEN);
       const available = await this.isAvailable();
       const version = await resolveClaudeVersion(this.runtimeSettings);
       let modelsValue = "Not checked";
@@ -1181,7 +1185,7 @@ export class ClaudeAgentClient implements AgentClient {
       if (resolvedBinary !== "not found" && !hasApiKey) {
         const configDir = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
         const configPath = path.join(configDir, "settings.json");
-        status = `❌ Not available - API key not configured. Add ANTHROPIC_API_KEY to ${configPath} under "env" section, or set it as an environment variable.`;
+        status = `❌ Not available - API key not configured. Add ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN to ${configPath} under "env" section, or set it as an environment variable.`;
       }
 
       if (available) {
