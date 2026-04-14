@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.58 - 2026-04-14
+
+### Improved
+- Claude Code now shows clear error messages when API key is missing — the diagnostic panel explains how to configure ANTHROPIC_API_KEY in settings.json.
+
 ## 0.1.57 - 2026-04-14
 
 ### Fixed
