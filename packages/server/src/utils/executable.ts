@@ -12,6 +12,15 @@ export interface FindExecutableDependencies {
   platform: typeof platform;
 }
 
+/** On Windows, prefer .cmd/.exe/.bat over extensionless shell scripts. */
+function resolveWindowsWhereOutput(output: string): string | null {
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return lines.find((line) => /\.(cmd|exe|bat)$/i.test(line)) ?? lines[0] ?? null;
+}
+
 function resolveExecutableFromWhichOutput(
   name: string,
   output: string,
@@ -72,12 +81,7 @@ export function findExecutableSync(
           windowsHide: true,
         })
         .trim();
-      return (
-        out
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .find((line) => line.length > 0) ?? null
-      );
+      return resolveWindowsWhereOutput(out);
     } catch {
       return null;
     }
@@ -114,13 +118,7 @@ export async function findExecutable(name: string): Promise<string | null> {
         encoding: "utf8",
         windowsHide: true,
       });
-      return (
-        stdout
-          .trim()
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .find((line) => line.length > 0) ?? null
-      );
+      return resolveWindowsWhereOutput(stdout.trim());
     } catch {
       return null;
     }
@@ -161,4 +159,19 @@ export function quoteWindowsArgument(argument: string): string {
   if (!argument.includes(" ")) return argument;
   if (argument.startsWith('"') && argument.endsWith('"')) return argument;
   return `"${argument}"`;
+}
+
+/**
+ * On Windows, .cmd files cannot be spawned directly with shell: false.
+ * Wrap them with cmd.exe /c to avoid EINVAL errors while keeping shell: false
+ * (which is required because the SDK passes --mcp-config with inline JSON).
+ */
+export function prepareWindowsSpawn(
+  command: string,
+  args: string[],
+): { command: string; args: string[] } {
+  if (process.platform !== "win32" || !/\.cmd$/i.test(command)) {
+    return { command, args };
+  }
+  return { command: "cmd.exe", args: ["/c", command, ...args] };
 }
