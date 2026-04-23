@@ -238,6 +238,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
     null,
   );
   const isInputFocusedRef = useRef(false);
+  const isComposingRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -899,6 +900,10 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
 
     if (event.nativeEvent.key !== "Enter") return;
 
+    // Don't submit during IME composition (e.g., Chinese/Japanese/Korean input)
+    const ne = event.nativeEvent as unknown as { isComposing?: boolean; keyCode?: number };
+    if (isComposingRef.current || ne.isComposing || ne.keyCode === 229) return;
+
     // Shift+Enter: add newline (default behavior, don't intercept)
     if (shiftKey) return;
 
@@ -1016,6 +1021,14 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
             onKeyPress={shouldHandleDesktopSubmit ? handleDesktopKeyPress : undefined}
             onSelectionChange={handleSelectionChange}
             autoFocus={IS_WEB && autoFocus}
+            {...(IS_WEB && {
+              onCompositionStart: () => {
+                isComposingRef.current = true;
+              },
+              onCompositionEnd: () => {
+                isComposingRef.current = false;
+              },
+            })}
           />
           {inputScrollbar}
         </View>
