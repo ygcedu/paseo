@@ -43,6 +43,11 @@ import {
   formatProviderDiagnosticError,
   toDiagnosticErrorMessage,
 } from "./diagnostic-utils.js";
+import {
+  loadClaudeConfigEnv,
+  mergeClaudeEnv,
+  resolveClaudeModelFromEnv,
+} from "./claude/config-loader.js";
 
 import type {
   AgentPermissionAction,
@@ -73,7 +78,7 @@ import type {
   PersistedAgentDescriptor,
 } from "../agent-sdk-types.js";
 import { applyProviderEnv, type ProviderRuntimeSettings } from "../provider-launch-config.js";
-import { findExecutable } from "../../../utils/executable.js";
+import { findExecutable, prepareWindowsSpawn } from "../../../utils/executable.js";
 import { spawnProcess } from "../../../utils/spawn.js";
 import { getOrchestratorModeInstructions } from "../orchestrator-instructions.js";
 
@@ -215,8 +220,9 @@ function applyRuntimeSettingsToClaudeOptions(
       // When the SDK passes a native binary path (from pathToClaudeCodeExecutable)
       // or the user overrides the command via runtime settings, use that directly.
       const isDefaultRuntime = resolved.command === "node" || resolved.command === "bun";
-      const command = isDefaultRuntime ? process.execPath : resolved.command;
-      const child = spawnProcess(command, resolved.args, {
+      const rawCommand = isDefaultRuntime ? process.execPath : resolved.command;
+      const { command, args } = prepareWindowsSpawn(rawCommand, resolved.args);
+      const child = spawnProcess(command, args, {
         cwd: spawnOptions.cwd,
         env: {
           ...applyProviderEnv(spawnOptions.env, runtimeSettings),
@@ -1132,16 +1138,32 @@ export class ClaudeAgentClient implements AgentClient {
     if (command?.mode === "replace") {
       return fs.existsSync(command.argv[0]);
     }
-    return true;
+    if (!(await findExecutable("claude"))) return false;
+    const merged = mergeClaudeEnv(process.env, await loadClaudeConfigEnv());
+    return Boolean(
+      merged.ANTHROPIC_API_KEY || merged.ANTHROPIC_AUTH_TOKEN || merged.CLAUDE_CODE_OAUTH_TOKEN,
+    );
   }
 
   async getDiagnostic(): Promise<{ diagnostic: string }> {
     try {
       const resolvedBinary = (await findExecutable("claude")) ?? "not found";
+      const merged = mergeClaudeEnv(process.env, await loadClaudeConfigEnv());
+      const hasApiKey = Boolean(
+        merged.ANTHROPIC_API_KEY || merged.ANTHROPIC_AUTH_TOKEN || merged.CLAUDE_CODE_OAUTH_TOKEN,
+      );
       const available = await this.isAvailable();
       const version = await resolveClaudeVersion(this.runtimeSettings);
       let modelsValue = "Not checked";
       let status = formatDiagnosticStatus(available);
+
+      if (resolvedBinary !== "not found" && !hasApiKey) {
+        const configPath = path.join(
+          process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
+          "settings.json",
+        );
+        status = `❌ API key not configured. Add ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN to ${configPath} under "env", or set as environment variable.`;
+      }
 
       if (available) {
         try {
@@ -1160,6 +1182,7 @@ export class ClaudeAgentClient implements AgentClient {
         diagnostic: formatProviderDiagnostic("Claude Code", [
           { label: "Binary", value: resolvedBinary },
           ...(version ? [{ label: "Version", value: version }] : []),
+          { label: "API Key", value: hasApiKey ? "✓ Configured" : "✗ Not configured" },
           { label: "Models", value: modelsValue },
           { label: "Status", value: status },
         ]),
@@ -2100,6 +2123,10 @@ class ClaudeAgentSession implements AgentSession {
       },
       "Resolved Claude executable",
     );
+
+    // Load environment variables from Claude's settings.json if not set in process.env
+    const mergedEnv = mergeClaudeEnv(process.env, await loadClaudeConfigEnv());
+
     const base: ClaudeOptions = {
       cwd: this.config.cwd,
       includePartialMessages: true,
@@ -2124,7 +2151,7 @@ class ClaudeAgentSession implements AgentSession {
         this.logger.error({ stderr: data.trim() }, "Claude Agent SDK stderr");
       },
       env: {
-        ...process.env,
+        ...mergedEnv,
         // Increase MCP timeouts for long-running tool calls (10 minutes)
         MCP_TIMEOUT: "600000",
         MCP_TOOL_TIMEOUT: "600000",
@@ -2145,7 +2172,7 @@ class ClaudeAgentSession implements AgentSession {
     }
 
     if (this.config.model) {
-      base.model = this.config.model;
+      base.model = resolveClaudeModelFromEnv(this.config.model, mergedEnv);
     }
     this.lastOptionsModel = base.model ?? null;
     if (this.claudeSessionId) {
