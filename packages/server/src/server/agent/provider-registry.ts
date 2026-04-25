@@ -55,6 +55,13 @@ const PROVIDER_CLIENT_FACTORIES: Record<string, ProviderClientFactory> = {
   opencode: (logger, runtimeSettings) => new OpenCodeAgentClient(logger, runtimeSettings?.opencode),
   pi: (logger, runtimeSettings) =>
     new PiACPAgentClient({ logger, runtimeSettings: runtimeSettings?.pi }),
+  "free-code": (logger, runtimeSettings) =>
+    new ClaudeAgentClient({
+      logger,
+      runtimeSettings: runtimeSettings?.["free-code"],
+      executableName: "free-code",
+      providerId: "free-code",
+    }),
 };
 
 function getProviderClientFactory(provider: string): ProviderClientFactory {
