@@ -13,6 +13,7 @@ import { ClaudeAgentClient } from "./providers/claude-agent.js";
 import { CodexAppServerAgentClient } from "./providers/codex-app-server-agent.js";
 import { OpenCodeAgentClient, OpenCodeServerManager } from "./providers/opencode-agent.js";
 import { CopilotACPAgentClient } from "./providers/copilot-acp-agent.js";
+import { DevinACPAgentClient } from "./providers/devin-acp-agent.js";
 import { PiACPAgentClient } from "./providers/pi-acp-agent.js";
 
 import {
@@ -51,6 +52,11 @@ const PROVIDER_CLIENT_FACTORIES: Record<string, ProviderClientFactory> = {
     new CopilotACPAgentClient({
       logger,
       runtimeSettings: runtimeSettings?.copilot,
+    }),
+  devin: (logger, runtimeSettings) =>
+    new DevinACPAgentClient({
+      logger,
+      runtimeSettings: runtimeSettings?.devin,
     }),
   opencode: (logger, runtimeSettings) => new OpenCodeAgentClient(logger, runtimeSettings?.opencode),
   pi: (logger, runtimeSettings) =>
