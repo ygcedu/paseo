@@ -48,11 +48,14 @@ function isClaudeContentChunk(value: unknown): value is ClaudeContentChunk {
 export class ClaudeSidechainTracker {
   private readonly activeSidechains = new Map<string, SubAgentActivityState>();
   private readonly getToolInput: (toolUseId: string) => AgentMetadata | null | undefined;
+  private readonly providerId: string;
 
   constructor(input: {
     getToolInput: (toolUseId: string) => AgentMetadata | null | undefined;
+    providerId?: string;
   }) {
     this.getToolInput = input.getToolInput;
+    this.providerId = input.providerId ?? "claude";
   }
 
   handleMessage(message: SDKMessage, parentToolUseId: string): AgentStreamEvent[] {
@@ -112,7 +115,7 @@ export class ClaudeSidechainTracker {
           ...toolCall,
           detail,
         },
-        provider: "claude",
+        provider: this.providerId,
       },
     ];
   }

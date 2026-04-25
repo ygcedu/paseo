@@ -116,6 +116,37 @@ const OPENCODE_MODES: AgentProviderModeDefinition[] = [
   },
 ];
 
+const FREE_CODE_MODES: AgentProviderModeDefinition[] = [
+  {
+    id: "default",
+    label: "Always Ask",
+    description: "Prompts for permission the first time a tool is used",
+    icon: "ShieldCheck",
+    colorTier: "safe",
+  },
+  {
+    id: "acceptEdits",
+    label: "Accept File Edits",
+    description: "Automatically approves edit-focused tools without prompting",
+    icon: "ShieldAlert",
+    colorTier: "moderate",
+  },
+  {
+    id: "plan",
+    label: "Plan Mode",
+    description: "Analyze the codebase without executing tools or edits",
+    icon: "ShieldCheck",
+    colorTier: "planning",
+  },
+  {
+    id: "bypassPermissions",
+    label: "Bypass",
+    description: "Skip all permission prompts (use with caution)",
+    icon: "ShieldAlert",
+    colorTier: "dangerous",
+  },
+];
+
 const MOCK_LOAD_TEST_MODES: AgentProviderModeDefinition[] = [
   {
     id: "load-test",
@@ -175,6 +206,14 @@ export const AGENT_PROVIDER_DEFINITIONS: AgentProviderDefinition[] = [
     description: "Minimal terminal-based coding agent with multi-provider LLM support",
     defaultModeId: null,
     modes: [],
+  },
+  {
+    id: "free-code",
+    label: "Free Code",
+    description:
+      "Open-source Claude Code fork with multi-provider LLM support and same CLI interface",
+    defaultModeId: "default",
+    modes: FREE_CODE_MODES,
   },
 ];
 

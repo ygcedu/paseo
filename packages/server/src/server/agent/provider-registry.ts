@@ -89,6 +89,13 @@ const PROVIDER_CLIENT_FACTORIES: Record<string, ProviderClientFactory> = {
       logger,
       runtimeSettings,
     }),
+  "free-code": (logger, runtimeSettings) =>
+    new ClaudeAgentClient({
+      logger,
+      runtimeSettings,
+      executableName: "free-code",
+      providerId: "free-code",
+    }),
   mock: (logger) => new MockLoadTestAgentClient(logger),
 };
 

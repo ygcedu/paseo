@@ -151,7 +151,7 @@ type SlashCommandInvocation = {
 };
 
 // Orchestrator instructions moved to shared module.
-type ClaudeAgentConfig = AgentSessionConfig & { provider: "claude" };
+type ClaudeAgentConfig = AgentSessionConfig & { provider: string };
 
 export type ClaudeContentChunk = { type: string; [key: string]: any };
 
@@ -162,6 +162,10 @@ type ClaudeAgentClientOptions = {
   logger: Logger;
   runtimeSettings?: ProviderRuntimeSettings;
   queryFactory?: typeof query;
+  /** Binary name to look up via PATH (default: "claude"). */
+  executableName?: string;
+  /** Provider identifier (default: "claude"). */
+  providerId?: string;
 };
 
 type ClaudeAgentSessionOptions = {
@@ -171,6 +175,10 @@ type ClaudeAgentSessionOptions = {
   launchEnv?: Record<string, string>;
   logger: Logger;
   queryFactory?: typeof query;
+  /** Binary name to look up via PATH (default: "claude"). */
+  executableName?: string;
+  /** Provider identifier (default: "claude"). */
+  providerId?: string;
 };
 
 type ClaudeThinkingEffort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -577,7 +585,11 @@ function coerceSessionMetadata(metadata: AgentMetadata | undefined): Partial<Age
   }
 
   const result: Partial<AgentSessionConfig> = {};
-  if (metadata.provider === "claude" || metadata.provider === "codex") {
+  if (
+    metadata.provider === "claude" ||
+    metadata.provider === "codex" ||
+    metadata.provider === "free-code"
+  ) {
     result.provider = metadata.provider;
   }
   if (typeof metadata.cwd === "string") {
@@ -1057,19 +1069,22 @@ export function readEventIdentifiers(message: SDKMessage): EventIdentifiers {
 const claudeDebug = process.env.PASEO_CLAUDE_DEBUG === "1";
 
 export class ClaudeAgentClient implements AgentClient {
-  readonly provider: "claude" = "claude";
+  readonly provider: string;
   readonly capabilities = CLAUDE_CAPABILITIES;
 
   private readonly defaults?: { agents?: Record<string, AgentDefinition> };
   private readonly logger: Logger;
   private readonly runtimeSettings?: ProviderRuntimeSettings;
   private readonly queryFactory: typeof query;
+  private readonly executableName: string;
 
   constructor(options: ClaudeAgentClientOptions) {
+    this.provider = options.providerId ?? "claude";
     this.defaults = options.defaults;
-    this.logger = options.logger.child({ module: "agent", provider: "claude" });
+    this.logger = options.logger.child({ module: "agent", provider: this.provider });
     this.runtimeSettings = options.runtimeSettings;
     this.queryFactory = options.queryFactory ?? query;
+    this.executableName = options.executableName ?? "claude";
   }
 
   async createSession(
@@ -1083,6 +1098,8 @@ export class ClaudeAgentClient implements AgentClient {
       launchEnv: launchContext?.env,
       logger: this.logger,
       queryFactory: this.queryFactory,
+      executableName: this.executableName,
+      providerId: this.provider,
     });
   }
 
@@ -1096,7 +1113,11 @@ export class ClaudeAgentClient implements AgentClient {
     if (!merged.cwd) {
       throw new Error("Claude resume requires the original working directory in metadata");
     }
-    const mergedConfig: AgentSessionConfig = { ...merged, provider: "claude", cwd: merged.cwd };
+    const mergedConfig: AgentSessionConfig = {
+      ...merged,
+      provider: this.provider,
+      cwd: merged.cwd,
+    };
     const claudeConfig = this.assertConfig(mergedConfig);
     return new ClaudeAgentSession(claudeConfig, {
       defaults: this.defaults,
@@ -1105,12 +1126,19 @@ export class ClaudeAgentClient implements AgentClient {
       launchEnv: launchContext?.env,
       logger: this.logger,
       queryFactory: this.queryFactory,
+      executableName: this.executableName,
+      providerId: this.provider,
     });
   }
 
   async listModels(_options: ListModelsOptions): Promise<AgentModelDefinition[]> {
-    // Claude exposes a static catalog here; cwd/force are intentionally irrelevant.
-    return getClaudeModels();
+    const models = getClaudeModels();
+    // For non-claude providers (e.g. free-code), replace the provider field
+    // so the UI shows the correct provider association.
+    if (this.provider !== "claude") {
+      return models.map((model) => ({ ...model, provider: this.provider }));
+    }
+    return models;
   }
 
   async listPersistedAgents(
@@ -1143,16 +1171,21 @@ export class ClaudeAgentClient implements AgentClient {
     if (command?.mode === "replace") {
       return await isCommandAvailable(command.argv[0]);
     }
+    // For non-claude providers (e.g. free-code), the external binary is required.
+    if (this.provider !== "claude") {
+      return Boolean(await findExecutable(this.executableName));
+    }
     // Default mode uses @anthropic-ai/claude-agent-sdk's bundled cli.js run
     // via process.execPath. No external `claude` binary is required.
     return true;
   }
 
   async getDiagnostic(): Promise<{ diagnostic: string }> {
+    const providerLabel = this.provider === "claude" ? "Claude Code" : this.provider;
     try {
-      const resolvedBinary = (await findExecutable("claude")) ?? "not found";
+      const resolvedBinary = (await findExecutable(this.executableName)) ?? "not found";
       const available = await this.isAvailable();
-      const version = await resolveClaudeVersion(this.runtimeSettings);
+      const version = await resolveClaudeVersion(this.runtimeSettings, this.executableName);
       const auth = available ? await resolveClaudeAuth(this.runtimeSettings) : null;
       let modelsValue = "Not checked";
       let status = formatDiagnosticStatus(available);
@@ -1171,7 +1204,7 @@ export class ClaudeAgentClient implements AgentClient {
       }
 
       return {
-        diagnostic: formatProviderDiagnostic("Claude Code", [
+        diagnostic: formatProviderDiagnostic(providerLabel, [
           { label: "Binary", value: resolvedBinary },
           ...(version ? [{ label: "Version", value: version }] : []),
           ...(auth ? [{ label: "Auth", value: auth }] : []),
@@ -1181,21 +1214,22 @@ export class ClaudeAgentClient implements AgentClient {
       };
     } catch (error) {
       return {
-        diagnostic: formatProviderDiagnosticError("Claude Code", error),
+        diagnostic: formatProviderDiagnosticError(providerLabel, error),
       };
     }
   }
 
   private assertConfig(config: AgentSessionConfig): ClaudeAgentConfig {
-    if (config.provider !== "claude") {
+    if (config.provider !== this.provider) {
       throw new Error(`ClaudeAgentClient received config for provider '${config.provider}'`);
     }
-    return { ...config, provider: "claude" } as ClaudeAgentConfig;
+    return { ...config, provider: this.provider } as ClaudeAgentConfig;
   }
 }
 
 async function resolveClaudeVersion(
   runtimeSettings?: ProviderRuntimeSettings,
+  executableName: string = "claude",
 ): Promise<string | null> {
   const command = runtimeSettings?.command;
 
@@ -1209,7 +1243,7 @@ async function resolveClaudeVersion(
       return stdout.trim() || null;
     }
 
-    const executable = await findExecutable("claude");
+    const executable = await findExecutable(executableName);
     if (!executable) {
       return null;
     }
@@ -1347,7 +1381,7 @@ function readStreamRequestOutputTokens(event: Record<string, unknown>): number |
 }
 
 class ClaudeAgentSession implements AgentSession {
-  readonly provider: "claude" = "claude";
+  readonly provider: string;
   readonly capabilities = CLAUDE_CAPABILITIES;
 
   private readonly config: ClaudeAgentConfig;
@@ -1356,6 +1390,7 @@ class ClaudeAgentSession implements AgentSession {
   private readonly runtimeSettings?: ProviderRuntimeSettings;
   private readonly logger: Logger;
   private readonly queryFactory: typeof query;
+  private readonly executableName: string;
   private query: Query | null = null;
   private input: AsyncMessageInput<SDKUserMessage> | null = null;
   private claudeSessionId: string | null;
@@ -1371,9 +1406,7 @@ class ClaudeAgentSession implements AgentSession {
   private autonomousTurn: AutonomousTurnState | null = null;
   private readonly subscribers = new Set<(event: AgentStreamEvent) => void>();
   private readonly timelineAssembler = new TimelineAssembler();
-  private readonly sidechainTracker = new ClaudeSidechainTracker({
-    getToolInput: (toolUseId) => this.toolUseCache.get(toolUseId)?.input ?? null,
-  });
+  private readonly sidechainTracker: ClaudeSidechainTracker;
   private persistedHistory: AgentTimelineItem[] = [];
   private historyPending = false;
   private turnState: TurnState = "idle";
@@ -1397,12 +1430,18 @@ class ClaudeAgentSession implements AgentSession {
   private closed = false;
 
   constructor(config: ClaudeAgentConfig, options: ClaudeAgentSessionOptions) {
+    this.provider = options.providerId ?? "claude";
     this.config = config;
     this.launchEnv = options.launchEnv;
     this.defaults = options.defaults;
     this.runtimeSettings = options.runtimeSettings;
     this.logger = options.logger;
     this.queryFactory = options.queryFactory ?? query;
+    this.executableName = options.executableName ?? "claude";
+    this.sidechainTracker = new ClaudeSidechainTracker({
+      getToolInput: (toolUseId) => this.toolUseCache.get(toolUseId)?.input ?? null,
+      providerId: this.provider,
+    });
     const handle = options.handle;
 
     if (handle) {
@@ -2130,7 +2169,7 @@ class ClaudeAgentSession implements AgentSession {
       .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
       .join("\n\n");
 
-    const claudeBinary = await findExecutable("claude");
+    const claudeBinary = await findExecutable(this.executableName);
     this.logger.debug(
       {
         claudeBinary,

@@ -4,6 +4,11 @@ import type { AttachmentMetadata } from "@/attachments/types";
 import { extractTaskEntriesFromToolCall } from "../utils/tool-call-parsers";
 import { splitMarkdownBlocks } from "@/utils/split-markdown-blocks";
 
+/** Providers that use the Claude Code CLI under the hood. */
+function isClaudeBasedProvider(provider: string): boolean {
+  return provider === "claude" || provider === "free-code";
+}
+
 /**
  * Simple hash function for deterministic ID generation
  */
@@ -571,13 +576,13 @@ export function reduceStreamUpdate(
             .trim()
             .replace(/[.\s-]+/g, "_")
             .toLowerCase();
-          if (event.provider === "claude" && normalizedToolName === "exitplanmode") {
+          if (isClaudeBasedProvider(event.provider) && normalizedToolName === "exitplanmode") {
             // ExitPlanMode is rendered via the plan permission prompt; avoid duplicating it in the timeline.
             break;
           }
 
           if (
-            event.provider === "claude" &&
+            isClaudeBasedProvider(event.provider) &&
             (normalizedToolName === "todowrite" || normalizedToolName === "todo_write")
           ) {
             // For Claude: TodoWrite often appears as a tool call that never resolves. Always render it
@@ -633,7 +638,7 @@ export function reduceStreamUpdate(
           break;
         }
         case "todo": {
-          if (event.provider === "claude") {
+          if (isClaudeBasedProvider(event.provider)) {
             // Claude plan mode is rendered via permission prompts + TodoWrite tool calls.
             // Avoid rendering legacy plan-mode todo timeline items as Tasks.
             break;
