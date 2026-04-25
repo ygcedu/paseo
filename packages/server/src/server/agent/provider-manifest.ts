@@ -116,6 +116,37 @@ const OPENCODE_MODES: AgentProviderModeDefinition[] = [
   },
 ];
 
+const DEVIN_MODES: AgentProviderModeDefinition[] = [
+  {
+    id: "accept-edits",
+    label: "Code",
+    description: "Write and edit code",
+    icon: "ShieldAlert",
+    colorTier: "moderate",
+  },
+  {
+    id: "ask",
+    label: "Ask",
+    description: "Answer questions without code changes",
+    icon: "ShieldCheck",
+    colorTier: "safe",
+  },
+  {
+    id: "plan",
+    label: "Plan",
+    description: "Plan changes before implementing",
+    icon: "ShieldCheck",
+    colorTier: "planning",
+  },
+  {
+    id: "bypass",
+    label: "Bypass Permissions",
+    description: "Auto-approve all tool calls",
+    icon: "ShieldOff",
+    colorTier: "dangerous",
+  },
+];
+
 const FREE_CODE_MODES: AgentProviderModeDefinition[] = [
   {
     id: "default",
@@ -206,6 +237,14 @@ export const AGENT_PROVIDER_DEFINITIONS: AgentProviderDefinition[] = [
     description: "Minimal terminal-based coding agent with multi-provider LLM support",
     defaultModeId: null,
     modes: [],
+  },
+  {
+    id: "devin",
+    label: "Devin",
+    description:
+      "Cognition's AI coding agent via Agent Client Protocol with multi-model support and sandbox controls",
+    defaultModeId: "accept-edits",
+    modes: DEVIN_MODES,
   },
   {
     id: "free-code",

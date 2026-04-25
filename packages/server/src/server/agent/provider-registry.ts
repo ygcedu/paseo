@@ -24,6 +24,7 @@ import type {
 import { ClaudeAgentClient } from "./providers/claude-agent.js";
 import { CodexAppServerAgentClient } from "./providers/codex-app-server-agent.js";
 import { CopilotACPAgentClient } from "./providers/copilot-acp-agent.js";
+import { DevinACPAgentClient } from "./providers/devin-acp-agent.js";
 import { GenericACPAgentClient } from "./providers/generic-acp-agent.js";
 import { OpenCodeAgentClient, OpenCodeServerManager } from "./providers/opencode-agent.js";
 import { PiDirectAgentClient } from "./providers/pi-direct-agent.js";
@@ -80,6 +81,11 @@ const PROVIDER_CLIENT_FACTORIES: Record<string, ProviderClientFactory> = {
     }),
   copilot: (logger, runtimeSettings) =>
     new CopilotACPAgentClient({
+      logger,
+      runtimeSettings,
+    }),
+  devin: (logger, runtimeSettings) =>
+    new DevinACPAgentClient({
       logger,
       runtimeSettings,
     }),
