@@ -27,7 +27,7 @@ export function useCompactTimeAgo(date: Date | null): string {
   return useRelativeTimeLabel(date, describeCompactTimeAgo);
 }
 
-function useRelativeTimeLabel(
+export function useRelativeTimeLabel(
   date: Date | null,
   describe: (date: Date) => RelativeTimeLabel,
 ): string {

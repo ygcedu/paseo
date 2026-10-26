@@ -1,3 +1,4 @@
+import { useTabRecency } from "@/workspace-tabs/use-tab-recency";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Keyboard, Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -277,7 +278,7 @@ function MobileWorkspaceTabOption({
 }
 
 export const MobileWorkspaceTabSwitcher = memo(function MobileWorkspaceTabSwitcher({
-  tabs,
+  tabs: allTabs,
   activeTabKey,
   normalizedServerId,
   normalizedWorkspaceId,
@@ -296,6 +297,11 @@ export const MobileWorkspaceTabSwitcher = memo(function MobileWorkspaceTabSwitch
   onCloseTabsBelow,
   onCloseOtherTabs,
 }: MobileWorkspaceTabSwitcherProps) {
+  const matchesRecency = useTabRecency(normalizedServerId);
+  const tabs = useMemo(
+    () => allTabs.filter((tab) => tab.key === activeTabKey || matchesRecency(tab.target)),
+    [allTabs, activeTabKey, matchesRecency],
+  );
   const { t } = useTranslation();
   const tabFallbackLabels = useMemo(
     () => ({

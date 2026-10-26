@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import { i18n } from "@/i18n/i18next";
 import { encodeFilePathForPathSegment, encodeWorkspaceIdForPathSegment } from "@/utils/host-routes";
@@ -21,21 +22,25 @@ export interface WorkspaceTabMenuLabels {
   close: string;
 }
 
-export const DEFAULT_WORKSPACE_TAB_MENU_LABELS: WorkspaceTabMenuLabels = {
-  copyResumeCommand: i18n.t("workspace.tabs.menu.copyResumeCommand"),
-  copyAgentId: i18n.t("workspace.tabs.menu.copyAgentId"),
-  copyTerminalId: i18n.t("workspace.tabs.menu.copyTerminalId"),
-  copyFilePath: i18n.t("workspace.tabs.menu.copyFilePath"),
-  rename: i18n.t("workspace.tabs.menu.rename"),
-  closeAbove: i18n.t("workspace.tabs.menu.closeAbove"),
-  closeBelow: i18n.t("workspace.tabs.menu.closeBelow"),
-  closeLeft: i18n.t("workspace.tabs.menu.closeLeft"),
-  closeRight: i18n.t("workspace.tabs.menu.closeRight"),
-  closeOthers: i18n.t("workspace.tabs.menu.closeOthers"),
-  reloadAgent: i18n.t("workspace.tabs.menu.reloadAgent"),
-  reloadAgentTooltip: i18n.t("workspace.tabs.menu.reloadAgentTooltip"),
-  close: i18n.t("workspace.tabs.menu.close"),
-};
+export function getWorkspaceTabMenuLabels(t: TFunction): WorkspaceTabMenuLabels {
+  return {
+    copyResumeCommand: t("workspace.tabs.menu.copyResumeCommand"),
+    copyAgentId: t("workspace.tabs.menu.copyAgentId"),
+    copyTerminalId: t("workspace.tabs.menu.copyTerminalId"),
+    copyFilePath: t("workspace.tabs.menu.copyFilePath"),
+    rename: t("workspace.tabs.menu.rename"),
+    closeAbove: t("workspace.tabs.menu.closeAbove"),
+    closeBelow: t("workspace.tabs.menu.closeBelow"),
+    closeLeft: t("workspace.tabs.menu.closeLeft"),
+    closeRight: t("workspace.tabs.menu.closeRight"),
+    closeOthers: t("workspace.tabs.menu.closeOthers"),
+    reloadAgent: t("workspace.tabs.menu.reloadAgent"),
+    reloadAgentTooltip: t("workspace.tabs.menu.reloadAgentTooltip"),
+    close: t("workspace.tabs.menu.close"),
+  };
+}
+
+export const DEFAULT_WORKSPACE_TAB_MENU_LABELS = getWorkspaceTabMenuLabels(i18n.t);
 
 export type WorkspaceTabMenuEntry =
   | {

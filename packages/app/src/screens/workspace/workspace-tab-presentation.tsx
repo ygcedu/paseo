@@ -105,6 +105,7 @@ function WorkspaceTabPresentationResolverInner({
 interface WorkspaceTabIconProps {
   presentation: WorkspaceTabPresentation;
   active?: boolean;
+  color?: string;
   size?: number;
   strokeWidth?: number;
   statusDotBorderColor?: string;
@@ -122,13 +123,14 @@ const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMut
 export function WorkspaceTabIcon({
   presentation,
   active = false,
+  color,
   size = 14,
   strokeWidth,
   statusDotBorderColor,
   backdrop,
 }: WorkspaceTabIconProps): ReactElement {
+  const iconColor = color ?? (active ? styles.iconActive.color : styles.iconInactive.color);
   const Icon = presentation.icon;
-  const iconColor = active ? styles.iconActive.color : styles.iconInactive.color;
   return (
     <StatusIcon
       statusBucket={presentation.statusBucket}

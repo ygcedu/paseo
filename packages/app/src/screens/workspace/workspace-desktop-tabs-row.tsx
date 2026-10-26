@@ -1,3 +1,7 @@
+import { useMiddleClickClose } from "@/hooks/use-middle-click-close";
+import { describeAgentUpdateAge } from "@/workspace-tabs/updated-order";
+import { useRelativeTimeLabel } from "@/hooks/use-time-ago";
+import { useTabRecency } from "@/workspace-tabs/use-tab-recency";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import React, {
   Fragment,
@@ -63,6 +67,7 @@ import {
   type WorkspaceDesktopTabActions,
   type WorkspaceTabMenuEntry,
   type WorkspaceTabMenuLabels,
+  getWorkspaceTabMenuLabels,
 } from "@/screens/workspace/workspace-tab-menu";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import type { PaneHost } from "@/panels/panel-manifest";
@@ -74,7 +79,6 @@ import {
 } from "@/screens/workspace/workspace-tab-chip-backdrop";
 import type { Theme } from "@/styles/theme";
 import { RenderProfile } from "@/utils/render-profiler";
-import { TrailingActionScrim } from "@/components/ui/trailing-action-scrim";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import { useCompactTimeAgo } from "@/hooks/use-time-ago";
 import { formatCompactTimeAgoAsProse } from "@/utils/time";
@@ -116,8 +120,11 @@ const TAB_CONTENT_GAP = 4;
 const TAB_DROP_INDICATOR_WIDTH = 4;
 const TAB_MODIFIED_DOT_SIZE = 8;
 const TAB_MIN_WIDTH = 64;
+const AGENT_TAB_MIN_WIDTH = 160;
+const AGENT_UPDATE_BADGE_WIDTH = 56;
 const TAB_MAX_WIDTH = 160;
-const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 0;
+// Reserve the close action even while hidden so hovering never fades or covers the timestamp.
+const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 14;
 const TAB_LABEL_LAYOUT_ALLOWANCE = 4;
 const AGENT_TOOLTIP_TITLE_MAX_LENGTH = 80;
 
@@ -478,6 +485,7 @@ interface WorkspaceTabLabel {
   key: string;
   label: string;
   modified: boolean;
+  hasTimestamp: boolean;
 }
 
 interface WorkspaceTabLabelMeasurement {
@@ -501,7 +509,7 @@ function completeWorkspaceTabLabelWidths(
   measurements: Map<string, WorkspaceTabLabelMeasurement>,
 ): number[] | null {
   const widths: number[] = [];
-  for (const { key, label, modified } of labels) {
+  for (const { key, label, modified, hasTimestamp } of labels) {
     const measurement = measurements.get(key);
     if (!measurement || measurement.label !== label || measurement.width <= 0) {
       return null;
@@ -509,7 +517,12 @@ function completeWorkspaceTabLabelWidths(
     // The modified dot sits in the content row, so a modified tab needs that much more width
     // before its label starts truncating.
     const modifiedAllowance = modified ? TAB_CONTENT_GAP + TAB_MODIFIED_DOT_SIZE : 0;
-    widths.push(measurement.width + TAB_LABEL_LAYOUT_ALLOWANCE + modifiedAllowance);
+    widths.push(
+      measurement.width +
+        TAB_LABEL_LAYOUT_ALLOWANCE +
+        modifiedAllowance +
+        (hasTimestamp ? AGENT_UPDATE_BADGE_WIDTH + TAB_CONTENT_GAP : 0),
+    );
   }
   return widths;
 }
@@ -641,26 +654,22 @@ function getFallbackTabLabel(
   return labels.agent;
 }
 
-function useMiddleClickClose(onClose: () => void) {
-  const ref = useRef<View>(null);
-
-  useEffect(() => {
-    if (isNative) return;
-    const node = ref.current as unknown as HTMLElement | null;
-    if (!node) return;
-
-    function handleAuxClick(event: MouseEvent) {
-      if (event.button === 1) {
-        event.preventDefault();
-        onClose();
-      }
-    }
-
-    node.addEventListener("auxclick", handleAuxClick);
-    return () => node.removeEventListener("auxclick", handleAuxClick);
-  }, [onClose]);
-
-  return ref;
+function AgentUpdatedBadge({ serverId, agentId }: { serverId: string; agentId: string }) {
+  const timestamp = useSessionStore((state) => {
+    const session = state.sessions[serverId];
+    const agent = session?.agents.get(agentId) ?? session?.agentDetails.get(agentId);
+    return agent?.updatedAt.getTime() ?? null;
+  });
+  const date = useMemo(() => (timestamp === null ? null : new Date(timestamp)), [timestamp]);
+  const label = useRelativeTimeLabel(date, describeAgentUpdateAge);
+  if (!label) return null;
+  return (
+    <View style={styles.updatedBadge} testID={`agent-tab-updated-${agentId}`}>
+      <Text style={styles.updatedBadgeText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
 }
 
 function TabHandleContent({
@@ -671,6 +680,8 @@ function TabHandleContent({
   tabLabelSkeletonStyle,
   tabLabelStyle,
   modifiedTestId,
+  serverId,
+  agentId,
 }: {
   presentation: WorkspaceTabPresentation;
   isHighlighted: boolean;
@@ -679,6 +690,8 @@ function TabHandleContent({
   tabLabelSkeletonStyle: React.ComponentProps<typeof View>["style"];
   tabLabelStyle: React.ComponentProps<typeof Text>["style"];
   modifiedTestId: string;
+  serverId: string;
+  agentId: string | null;
 }) {
   const { t } = useTranslation();
   const tabHandleDataSet = useMemo(
@@ -699,6 +712,7 @@ function TabHandleContent({
           {presentation.label}
         </Text>
       ) : null}
+      {agentId ? <AgentUpdatedBadge serverId={serverId} agentId={agentId} /> : null}
       {/* The dot is a laid-out sibling of the label, not an overlay, so a truncated label ends
           before it instead of running underneath it. */}
       {presentation.modified ? (
@@ -841,8 +855,12 @@ function TabChip({
     tab.target.kind === "new_tab" ? tab.tabId : buildDeterministicWorkspaceTabId(tab.target);
   const tabLabelSkeletonStyle = styles.tabLabelSkeleton;
   const tabLabelStyle = useMemo(
-    () => [styles.tabLabel, isHighlighted && styles.tabLabelActive],
-    [isHighlighted],
+    () => [
+      styles.tabLabel,
+      isHighlighted && styles.tabLabelActive,
+      isActiveFocused && styles.tabLabelSelected,
+    ],
+    [isHighlighted, isActiveFocused],
   );
 
   return (
@@ -869,6 +887,8 @@ function TabChip({
             >
               <TabHandleContent
                 presentation={presentation}
+                serverId={serverId}
+                agentId={tab.target.kind === "agent" ? tab.target.agentId : null}
                 isHighlighted={isHighlighted}
                 showLabel={showLabel}
                 backdrop={chipBackdrop}
@@ -905,7 +925,6 @@ function TabChip({
               showCloseControl ? styles.tabTrailingOverlayShown : styles.tabTrailingOverlayHidden,
             ]}
           >
-            <TrailingActionScrim backdrop={chipBackdrop} />
             <Pressable
               {...(closeButtonDragBlockers as object | undefined)}
               testID={closeButtonTestId}
@@ -958,7 +977,13 @@ function TabChip({
   );
 }
 
-export function WorkspaceDesktopTabsRow(props: WorkspaceDesktopTabsRowProps) {
+export function WorkspaceDesktopTabsRow(inputProps: WorkspaceDesktopTabsRowProps) {
+  const matchesRecency = useTabRecency(inputProps.normalizedServerId);
+  const filteredTabs = useMemo(
+    () => inputProps.tabs.filter((item) => item.isActive || matchesRecency(item.tab.target)),
+    [inputProps.tabs, matchesRecency],
+  );
+  const props = { ...inputProps, tabs: filteredTabs };
   const [presentations, setPresentations] = useState(
     () => new Map<string, WorkspaceTabPresentation>(),
   );
@@ -1072,6 +1097,7 @@ function ResolvedWorkspaceDesktopTabsRow({
     updateMeasuredWidth(setExitFocusModeWidth, event);
   }, []);
 
+  const hasAgentTabs = tabs.some((item) => item.tab.kind === "agent");
   const layoutMetrics = useMemo(
     () => ({
       rowHorizontalInset: 0,
@@ -1084,14 +1110,20 @@ function ResolvedWorkspaceDesktopTabsRow({
       ),
       rowPaddingHorizontal: TAB_ROW_PADDING_HORIZONTAL,
       tabGap: TAB_CHIP_GAP,
-      minTabWidth: TAB_MIN_WIDTH,
-      maxTabWidth: TAB_MAX_WIDTH,
+      minTabWidth: hasAgentTabs ? AGENT_TAB_MIN_WIDTH : TAB_MIN_WIDTH,
+      maxTabWidth: hasAgentTabs ? TAB_MAX_WIDTH + AGENT_UPDATE_BADGE_WIDTH : TAB_MAX_WIDTH,
       tabIconWidth: TAB_ICON_WIDTH,
       tabContentGap: TAB_CONTENT_GAP,
       tabHorizontalPadding: TAB_CHIP_HORIZONTAL_PADDING,
       closeButtonWidth: TAB_CLOSE_BUTTON_RESERVED_WIDTH,
     }),
-    [exitFocusModeWidth, focusModeEnabled, showPaneMaximizeAction, showPaneSplitActions],
+    [
+      exitFocusModeWidth,
+      focusModeEnabled,
+      showPaneMaximizeAction,
+      showPaneSplitActions,
+      hasAgentTabs,
+    ],
   );
 
   const panePanelKinds = useMemo(() => tabs.map(({ tab }) => tab.kind), [tabs]);
@@ -1109,24 +1141,7 @@ function ResolvedWorkspaceDesktopTabsRow({
     }),
     [t],
   );
-  const tabMenuLabels = useMemo<WorkspaceTabMenuLabels>(
-    () => ({
-      copyResumeCommand: t("workspace.tabs.menu.copyResumeCommand"),
-      copyAgentId: t("workspace.tabs.menu.copyAgentId"),
-      copyTerminalId: t("workspace.tabs.menu.copyTerminalId"),
-      copyFilePath: t("workspace.tabs.menu.copyFilePath"),
-      rename: t("workspace.tabs.menu.rename"),
-      closeAbove: t("workspace.tabs.menu.closeAbove"),
-      closeBelow: t("workspace.tabs.menu.closeBelow"),
-      closeLeft: t("workspace.tabs.menu.closeLeft"),
-      closeRight: t("workspace.tabs.menu.closeRight"),
-      closeOthers: t("workspace.tabs.menu.closeOthers"),
-      reloadAgent: t("workspace.tabs.menu.reloadAgent"),
-      reloadAgentTooltip: t("workspace.tabs.menu.reloadAgentTooltip"),
-      close: t("workspace.tabs.menu.close"),
-    }),
-    [t],
-  );
+  const tabMenuLabels = useMemo(() => getWorkspaceTabMenuLabels(t), [t]);
   const tabLabels = useMemo(
     () =>
       tabs.map((tab) => {
@@ -1134,7 +1149,12 @@ function ResolvedWorkspaceDesktopTabsRow({
           tab.presentation.titleState === "loading"
             ? getFallbackTabLabel(tab.tab, fallbackTabLabels)
             : tab.presentation.label;
-        return { key: tab.tab.key, label, modified: tab.presentation.modified };
+        return {
+          key: tab.tab.key,
+          label,
+          modified: tab.presentation.modified,
+          hasTimestamp: tab.tab.kind === "agent",
+        };
       }),
     [fallbackTabLabels, tabs],
   );
@@ -1649,15 +1669,29 @@ const styles = StyleSheet.create((theme) => ({
   tab: {
     height: buttonControlHeight.xs,
     paddingHorizontal: TAB_CHIP_HORIZONTAL_PADDING,
+    paddingRight: TAB_CHIP_HORIZONTAL_PADDING + TAB_CLOSE_BUTTON_RESERVED_WIDTH,
     borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: "transparent",
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
     userSelect: "none",
   },
+  tabHovered: {
+    backgroundColor: theme.colors.tabHoverBackground,
+  },
+  tabActive: {
+    backgroundColor: theme.colors.tabSelectedBackground,
+    borderColor: theme.colors.tabSelectedBorder,
+  },
+  tabActiveUnfocused: {
+    backgroundColor: theme.colors.surface1,
+  },
   tabFill: (backdrop: SurfaceBackdrop) => ({
     backgroundColor: theme.colors[backdrop],
   }),
+
   tabHoverFrame: {
     position: "relative",
   },
@@ -1699,6 +1733,16 @@ const styles = StyleSheet.create((theme) => ({
   tabDropIndicatorAfter: {
     right: -TAB_CHIP_GAP / 2 - TAB_DROP_INDICATOR_WIDTH / 2,
   },
+  updatedBadge: {
+    width: AGENT_UPDATE_BADGE_WIDTH,
+    flexShrink: 0,
+    alignItems: "center",
+  },
+  updatedBadgeText: {
+    color: theme.colors.foregroundExtraMuted,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.normal,
+  },
   tabLabel: {
     flexShrink: 1,
     minWidth: 0,
@@ -1731,12 +1775,15 @@ const styles = StyleSheet.create((theme) => ({
   tabLabelActive: {
     color: theme.colors.foreground,
   },
+  tabLabelSelected: {
+    color: theme.colors.tabSelectedForeground,
+  },
   tabTrailingOverlay: {
     position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
-    width: 48,
+    width: TAB_CHIP_HORIZONTAL_PADDING + TAB_CLOSE_BUTTON_RESERVED_WIDTH,
     borderTopRightRadius: theme.borderRadius.md,
     borderBottomRightRadius: theme.borderRadius.md,
     alignItems: "center",
@@ -1752,7 +1799,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   tabCloseButton: {
     position: "absolute",
-    right: 4,
+    right: 2,
     width: 18,
     height: 18,
     borderRadius: theme.borderRadius.sm,
