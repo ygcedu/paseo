@@ -70,10 +70,10 @@ describe("plugin buttons", () => {
     expect(buttonMatches(buttons.getSnapshot()[1], "host-a", "workspace", "other-agent")).toBe(
       false,
     );
-    buttons.setOpen(first.key, true);
+    buttons.setOpen(first.key, true, "pane-a");
     header.update({ visible: false, label: "3 reviews" });
     expect(buttonMatches(buttons.getSnapshot()[0], "host-a", "workspace", null)).toBe(false);
-    expect(buttons.getSnapshot()[0].open).toBe(false);
+    expect(buttons.getSnapshot()[0].openOwner).toBe(null);
     header.update({ visible: true });
     expect(buttons.getSnapshot().map((entry) => entry.key)).toEqual([first.key, first.key + 1]);
     expect(buttons.getSnapshot()[0].button.label).toBe("3 reviews");
@@ -81,6 +81,32 @@ describe("plugin buttons", () => {
     header.remove();
     header.update({ visible: true });
     expect(buttons.getSnapshot().map((entry) => entry.placement)).toEqual(["composer"]);
+  });
+
+  it("opens only for the triggering instance and ignores another instance closing", () => {
+    const buttons = store();
+    const registration = buttons.addComposerPill(installation(), {
+      id: "delete",
+      workspaceId: "workspace",
+      agentId: "agent",
+      button: { title: "Delete", icon: "Scan", behavior: { kind: "popover", Content: () => null } },
+    });
+    const key = buttons.getSnapshot()[0].key;
+    buttons.setOpen(key, true, "pane-a");
+    expect(buttons.getSnapshot()[0].openOwner).toBe("pane-a");
+    buttons.setOpen(key, true, "pane-b");
+    buttons.setOpen(key, false, "pane-a");
+    expect(buttons.getSnapshot()[0].openOwner).toBe("pane-b");
+    registration.update({ label: "Delete session" });
+    expect(buttons.getSnapshot()[0].openOwner).toBe("pane-b");
+    registration.update({ disabled: true });
+    expect(buttons.getSnapshot()[0].openOwner).toBe(null);
+    buttons.setOpen(key, true, "pane-a");
+    expect(buttons.getSnapshot()[0].openOwner).toBe(null);
+    registration.update({ disabled: false });
+    buttons.setOpen(key, true, "pane-b");
+    buttons.setOpen(key, false, "pane-b");
+    expect(buttons.getSnapshot()[0].openOwner).toBe(null);
   });
 
   it("rejects duplicates within a target and validates updates atomically", () => {
@@ -219,12 +245,12 @@ it("updates translated tooltips and nested menu labels without closing open cont
     },
   });
   const original = buttons.getSnapshot()[0];
-  buttons.setOpen(original.key, true);
+  buttons.setOpen(original.key, true, "header-instance");
   locale = "zh-CN";
   for (const listener of listeners) listener();
   const translated = buttons.getSnapshot()[0];
   expect(translated.key).toBe(original.key);
-  expect(translated.open).toBe(true);
+  expect(translated.openOwner).toBe("header-instance");
   expect(translated.button.title).toBe("笔记");
   expect(translated.button.behavior).toMatchObject({
     kind: "menu",

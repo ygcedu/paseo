@@ -6,6 +6,8 @@ import type { PluginButtonIcon, PluginHostProps } from "@getpaseo/plugin/client"
 import type { PluginTheme } from "@getpaseo/plugin";
 import {
   useCallback,
+  useEffect,
+  useId,
   useMemo,
   useSyncExternalStore,
   type ReactElement,
@@ -244,6 +246,9 @@ function buttonPages(
 function ButtonControl({ view }: { view: ButtonView }) {
   const { entry, props } = view;
   const { button } = entry;
+  const owner = useId();
+  const open = entry.openOwner === owner;
+  useEffect(() => () => pluginButtonStore.setOpen(entry.key, false, owner), [entry.key, owner]);
   const composer = entry.placement === "composer";
   const disabled = button.disabled || entry.pending;
   const expanded = button.behavior.kind !== "action";
@@ -253,8 +258,8 @@ function ButtonControl({ view }: { view: ButtonView }) {
   else if (props.layout.compact) label = undefined;
   const press = useCallback(() => pressButton(view, []), [view]);
   const setOpen = useCallback(
-    (open: boolean) => pluginButtonStore.setOpen(entry.key, open),
-    [entry.key],
+    (nextOpen: boolean) => pluginButtonStore.setOpen(entry.key, nextOpen, owner),
+    [entry.key, owner],
   );
   const buttonStyle = useCallback(
     ({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) =>
@@ -262,11 +267,11 @@ function ButtonControl({ view }: { view: ButtonView }) {
         ? [
             composerPillStyles.body,
             styles.button,
-            (hovered || pressed || entry.open) && styles.active,
+            (hovered || pressed || open) && styles.active,
             disabled && styles.disabled,
           ]
-        : headerButtonStyle(props.layout.compact, { hovered, pressed, open: entry.open }, disabled),
-    [composer, disabled, entry.open, props.layout.compact],
+        : headerButtonStyle(props.layout.compact, { hovered, pressed, open }, disabled),
+    [composer, disabled, open, props.layout.compact],
   );
   const contents = (
     <>
@@ -323,7 +328,7 @@ function ButtonControl({ view }: { view: ButtonView }) {
     [view, entry.key, button.behavior],
   );
   return (
-    <MenuRoot compactMode="sheet" open={entry.open} onOpenChange={setOpen}>
+    <MenuRoot compactMode="sheet" open={open} onOpenChange={setOpen}>
       <Tooltip enabledOnMobile={false}>
         <TooltipTrigger asChild>{trigger}</TooltipTrigger>
         <TooltipContent>
