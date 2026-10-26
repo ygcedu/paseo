@@ -1,4 +1,4 @@
-import { DESKTOP_WINDOW_CONTROLS_HEIGHT } from "@/constants/layout";
+import { DESKTOP_CANVAS_VERTICAL_INSET, DESKTOP_WINDOW_CONTROLS_HEIGHT } from "@/constants/layout";
 import type { DesktopWindowChromeMode } from "@/desktop/host";
 
 export type CustomDesktopWindowChromeMode = Extract<
@@ -21,16 +21,16 @@ const PRESENTATION_BY_MODE: Record<
 > = {
   "custom-windows": {
     controlWidth: 46,
-    railHeight: DESKTOP_WINDOW_CONTROLS_HEIGHT,
-    controlHeight: DESKTOP_WINDOW_CONTROLS_HEIGHT - 1,
+    railHeight: DESKTOP_CANVAS_VERTICAL_INSET + DESKTOP_WINDOW_CONTROLS_HEIGHT,
+    controlHeight: DESKTOP_WINDOW_CONTROLS_HEIGHT,
     glyphSize: 16,
     glyphStrokeWidth: 1,
     hoverShape: "control",
   },
   "custom-linux": {
     controlWidth: 36,
-    railHeight: DESKTOP_WINDOW_CONTROLS_HEIGHT,
-    controlHeight: DESKTOP_WINDOW_CONTROLS_HEIGHT - 1,
+    railHeight: DESKTOP_CANVAS_VERTICAL_INSET + DESKTOP_WINDOW_CONTROLS_HEIGHT,
+    controlHeight: DESKTOP_WINDOW_CONTROLS_HEIGHT,
     glyphSize: 14,
     glyphStrokeWidth: 1.5,
     hoverShape: "circle",

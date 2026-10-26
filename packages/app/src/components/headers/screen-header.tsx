@@ -19,6 +19,7 @@ interface ScreenHeaderProps {
   leftStyle?: StyleProp<ViewStyle>;
   rightStyle?: StyleProp<ViewStyle>;
   borderless?: boolean;
+  surface?: "content" | "shell";
   onRowLayout?: (event: LayoutChangeEvent) => void;
 }
 
@@ -32,6 +33,7 @@ export function ScreenHeader({
   leftStyle,
   rightStyle,
   borderless,
+  surface = "content",
   onRowLayout,
 }: ScreenHeaderProps) {
   const { theme } = useUnistyles();
@@ -39,18 +41,25 @@ export function ScreenHeader({
   const isMobile = useIsCompactFormFactor();
   // Only add extra padding on mobile for better touch targets; on desktop, only use safe area insets
   const topPadding = isMobile ? HEADER_TOP_PADDING_MOBILE : 0;
-  const baseHorizontalPadding = isMobile ? theme.spacing[2] : theme.spacing[3];
+  const baseHorizontalPadding = theme.spacing[isMobile || surface === "shell" ? 2 : 3];
 
   const innerStyle = useMemo(
     () => [styles.inner, { paddingTop: insets.top + topPadding }],
     [insets.top, topPadding],
   );
-  const rowStyle = useMemo(() => [styles.row, borderless && styles.borderless], [borderless]);
+  const rowStyle = useMemo(
+    () => [styles.row, (borderless || surface === "shell") && styles.borderless],
+    [borderless, surface],
+  );
+  const headerStyle = useMemo(
+    () => [styles.header, surface === "shell" && styles.shell],
+    [surface],
+  );
   const leftCombinedStyle = useMemo(() => [styles.left, leftStyle], [leftStyle]);
   const rightCombinedStyle = useMemo(() => [styles.right, rightStyle], [rightStyle]);
 
   return (
-    <ComposerDockBackground style={styles.header} testID="composer-dock-header">
+    <ComposerDockBackground style={headerStyle} testID="composer-dock-header">
       <View style={innerStyle}>
         <WindowChromeSafeArea
           placement="inline"
@@ -71,6 +80,7 @@ const styles = StyleSheet.create((theme) => ({
   header: {
     backgroundColor: theme.colors.surface0,
   },
+  shell: { backgroundColor: theme.colors.surfaceShell },
   inner: {},
   row: {
     position: "relative",

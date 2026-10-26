@@ -1,3 +1,4 @@
+import { DESKTOP_CANVAS_VERTICAL_INSET } from "@/constants/layout";
 import { useCallback, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import Svg, { Line, Rect } from "react-native-svg";
@@ -173,7 +174,7 @@ export function DesktopWindowControls() {
 const styles = StyleSheet.create((theme) => ({
   controls: {
     position: "absolute",
-    top: 0,
+    top: DESKTOP_CANVAS_VERTICAL_INSET,
     right: 0,
     zIndex: 3000,
     flexDirection: "row",

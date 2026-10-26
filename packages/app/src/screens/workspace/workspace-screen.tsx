@@ -3314,9 +3314,10 @@ function WorkspaceScreenContent({
     () =>
       showScreenHeader ? (
         <ScreenHeader
+          surface={isMobile ? "content" : "shell"}
           left={
             <>
-              <SidebarMenuToggle />
+              <SidebarMenuToggle style={isMobile ? undefined : styles.sidebarToggleSlot} />
               <WorkspaceHeaderTitleBar
                 isLoading={isWorkspaceHeaderLoading}
                 title={workspaceHeaderTitle}
@@ -3345,6 +3346,7 @@ function WorkspaceScreenContent({
       handleOpenSetupTab,
       headerRight,
       isWorkspaceHeaderLoading,
+      isMobile,
       normalizedServerId,
       openImportSheet,
       showScreenHeader,
@@ -3808,6 +3810,11 @@ function WorkspaceScreenContent({
 }
 
 const styles = StyleSheet.create((theme) => ({
+  sidebarToggleSlot: {
+    width: 32,
+    height: 32,
+    marginLeft: 0,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface0,

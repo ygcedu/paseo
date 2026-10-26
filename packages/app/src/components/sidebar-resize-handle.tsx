@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { GestureDetector, type GestureType } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native-unistyles";
@@ -15,8 +14,6 @@ interface SidebarResizeHandleProps {
   pressed: boolean;
   testID: string;
 }
-
-const HIGHLIGHT_DELAY_MS = 100;
 
 const webResizeCursorStyle = isWeb
   ? ({
@@ -38,8 +35,6 @@ export function SidebarResizeHandle({ edge, gesture, pressed, testID }: SidebarR
 }
 
 function PointerResizeHandle({ edge, gesture, testID }: SidebarResizeHandleProps) {
-  const [highlighted, setHighlighted] = useState(false);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const geometry = resolveSidebarResizeHandleGeometry(true);
   const hitAreaStyle = [
     styles.hitArea,
@@ -48,39 +43,9 @@ function PointerResizeHandle({ edge, gesture, testID }: SidebarResizeHandleProps
     webResizeCursorStyle,
   ];
 
-  const cancelHighlightTimer = useCallback(() => {
-    if (highlightTimerRef.current === null) return;
-    clearTimeout(highlightTimerRef.current);
-    highlightTimerRef.current = null;
-  }, []);
-
-  const handleHoverIn = useCallback(() => {
-    cancelHighlightTimer();
-    highlightTimerRef.current = setTimeout(() => {
-      highlightTimerRef.current = null;
-      setHighlighted(true);
-    }, HIGHLIGHT_DELAY_MS);
-  }, [cancelHighlightTimer]);
-
-  const handleHoverOut = useCallback(() => {
-    cancelHighlightTimer();
-    setHighlighted(false);
-  }, [cancelHighlightTimer]);
-
-  useEffect(() => cancelHighlightTimer, [cancelHighlightTimer]);
-
   return (
     <GestureDetector gesture={gesture}>
-      <Pressable
-        testID={testID}
-        style={hitAreaStyle}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
-      >
-        {highlighted ? (
-          <View pointerEvents="none" testID={`${testID}-highlight`} style={styles.highlight} />
-        ) : null}
-      </Pressable>
+      <Pressable testID={testID} style={hitAreaStyle} />
     </GestureDetector>
   );
 }
@@ -127,15 +92,6 @@ const styles = StyleSheet.create((theme) => ({
     top: 0,
     bottom: 0,
     zIndex: 10,
-  },
-  highlight: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 5,
-    width: 1,
-    backgroundColor: theme.colors.foreground,
-    opacity: 0.25,
   },
   touchLayer: {
     position: "absolute",

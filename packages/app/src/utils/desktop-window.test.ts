@@ -24,11 +24,11 @@ describe("window chrome", () => {
       topRight: null,
     });
     expect(resolveWindowChromeObstruction({ mode: "custom-windows", isFullscreen: false })).toEqual(
-      { topLeft: null, topRight: { width: 138, height: 36 } },
+      { topLeft: null, topRight: { width: 138, height: 40 } },
     );
     expect(resolveWindowChromeObstruction({ mode: "custom-linux", isFullscreen: false })).toEqual({
       topLeft: null,
-      topRight: { width: 108, height: 36 },
+      topRight: { width: 108, height: 40 },
     });
   });
 

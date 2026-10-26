@@ -1,6 +1,8 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useIsExplorerSidebarOpen } from "@/workspace-tabs/explorer-sidebar";
+import { DESKTOP_CANVAS_VERTICAL_INSET } from "@/constants/layout";
+
 import { ComposerEditingSessionsProvider } from "@/composer/editing-session";
 import { SheetHostScope } from "@/components/ui/isolated-bottom-sheet-modal";
 import "@/styles/unistyles";
@@ -38,7 +40,6 @@ import { ChangelogHost } from "@/changelog";
 import { AppDiagnosticHost } from "@/components/app-diagnostic-host";
 import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
 import { LeftSidebar } from "@/components/left-sidebar";
-import { WindowSidebarMenuToggle } from "@/components/headers/sidebar-menu-toggle";
 import { DesktopWindowControls } from "@/components/desktop/window-controls";
 import { SidebarModelProvider } from "@/components/sidebar/sidebar-model";
 import { WorkspacePinShortcutHandler } from "@/components/workspace-pin-shortcut-handler";
@@ -120,7 +121,6 @@ import {
   useHasWindowChromeObstruction,
   WindowChromeProvider,
   WindowChromeRegion,
-  WindowChromeSafeArea,
 } from "@/utils/desktop-window";
 import {
   buildOpenProjectRoute,
@@ -340,8 +340,6 @@ interface AppContainerProps {
   chromeEnabled?: boolean;
 }
 
-const WINDOW_SIDEBAR_TOGGLE_HORIZONTAL_PADDING = 12;
-
 function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppContainerProps) {
   const keyboardActionDispatcher = useKeyboardActionDispatcher();
   const daemons = useHosts();
@@ -442,19 +440,28 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
     () => [rowStyle, !isCompactLayout && { paddingLeft: insets.left, paddingRight: insets.right }],
     [insets.left, insets.right, isCompactLayout],
   );
+  const compactChrome = chromeEnabled && isCompactLayout;
   const workspaceChrome = (
-    <View style={workspaceChromeStyle}>
+    <View style={[workspaceChromeStyle, desktopSidebarMounted && layoutStyles.navigationShell]}>
       <WorkspaceLayoutModePublisher />
       {!isCompactLayout ? (
         <WindowChromeRegion corners={appChromeLayout.sidebarCorners}>
           {themedSidebarChrome}
         </WindowChromeRegion>
       ) : null}
-      <WorkspaceExplorerOpenGesture enabled={chromeEnabled && isCompactLayout}>
-        <WindowChromeRegion
-          corners={isCompactLayout && chromeEnabled ? "both" : appChromeLayout.contentCorners}
-        >
-          <View style={flexStyle}>{children}</View>
+      <WorkspaceExplorerOpenGesture enabled={compactChrome}>
+        <WindowChromeRegion corners={compactChrome ? "both" : appChromeLayout.contentCorners}>
+          <View
+            style={[
+              flexStyle,
+              !isCompactLayout &&
+                desktopSidebarMounted &&
+                layoutStyles.workspaceCanvas(isWorkspaceRoute),
+            ]}
+            testID="desktop-workspace-canvas"
+          >
+            {children}
+          </View>
         </WindowChromeRegion>
       </WorkspaceExplorerOpenGesture>
     </View>
@@ -466,18 +473,6 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
     <View style={layoutStyles.surfaceFill}>
       {workspaceChrome}
       <AppearanceStyleBoundary>
-        {!isCompactLayout && appChromeLayout.sidebarToggleOwner === "window" ? (
-          <WindowChromeRegion corners="top-left">
-            <WindowChromeSafeArea
-              placement="inline"
-              horizontalPadding={WINDOW_SIDEBAR_TOGGLE_HORIZONTAL_PADDING}
-              pointerEvents="box-none"
-              style={layoutStyles.windowSidebarToggle}
-            >
-              <WindowSidebarMenuToggle />
-            </WindowChromeSafeArea>
-          </WindowChromeRegion>
-        ) : null}
         <DesktopWindowControls />
         <FloatingPanelPortalHost />
       </AppearanceStyleBoundary>
@@ -508,7 +503,7 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
   );
 
   return (
-    <AppContainerLifetime compactGesturesEnabled={chromeEnabled && isCompactLayout}>
+    <AppContainerLifetime compactGesturesEnabled={compactChrome}>
       <SheetHostScope enabled={isCompactLayout}>{surface}</SheetHostScope>
     </AppContainerLifetime>
   );
@@ -599,7 +594,8 @@ function DesktopWindowControlsSync() {
     if (isLoading || isNative) return;
     void updateDesktopWindowChrome({
       backgroundColor: surface0,
-      trafficLightOffsetY: -4,
+      // Center the native 12px controls in the 36px header, below the 8px shell inset.
+      trafficLightOffsetY: HEADER_INNER_HEIGHT / 2 - 12,
     }).catch((error) => {
       console.warn("[DesktopWindow] Failed to update window controls overlay", error);
     });
@@ -916,19 +912,22 @@ export default function RootLayout() {
 }
 
 const layoutStyles = StyleSheet.create((theme) => ({
+  navigationShell: { backgroundColor: theme.colors.surfaceShell },
+  workspaceCanvas: (workspace: boolean) => ({
+    minWidth: 0,
+    minHeight: 0,
+    marginTop: DESKTOP_CANVAS_VERTICAL_INSET,
+    marginLeft: workspace ? 0 : theme.spacing[2],
+    marginRight: workspace ? 0 : theme.spacing[2],
+    marginBottom: DESKTOP_CANVAS_VERTICAL_INSET,
+    borderRadius: workspace ? 0 : theme.borderRadius.xl,
+    borderWidth: workspace ? 0 : theme.borderWidth[1],
+    borderColor: theme.colors.border,
+    backgroundColor: workspace ? theme.colors.surfaceShell : theme.colors.surface0,
+    overflow: workspace ? "visible" : "hidden",
+  }),
   surfaceFill: {
     flex: 1,
     backgroundColor: theme.colors.surface0,
-  },
-  windowSidebarToggle: {
-    position: "absolute",
-    top: 1,
-    left: 0,
-    zIndex: 20,
-    height: HEADER_INNER_HEIGHT,
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: theme.borderWidth[1],
-    borderBottomColor: "transparent",
   },
 }));

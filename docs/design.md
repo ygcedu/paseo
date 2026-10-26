@@ -159,6 +159,8 @@ The settings shell (`packages/app/src/screens/settings-screen.tsx`) and the proj
 
 The branching is one `useIsCompactFormFactor()` check at the top of the screen component. The list and the detail are the same components in both layouts; only the framing changes.
 
+On desktop with navigation visible, navigation and content occupy separate rounded panels on `surfaceShell`, with matching outer insets and a narrow gutter. Keep their internal styles unchanged. Focus mode and compact layouts stay edge to edge.
+
 The workspace screen (`packages/app/src/screens/workspace/workspace-screen.tsx`) follows a different but parallel rule: tabs collapse on compact, panes split on desktop. The sidebar (`packages/app/src/components/left-sidebar.tsx`) is overlaid on compact and pinned on desktop.
 
 On a narrow window using the wide layout, app navigation yields when the remaining width cannot accommodate the content topology. Settings prefers a 720px split (320px list + 400px detail); its list shrinks first to keep forms readable without reducing the detail below 400px. Explorer reserves at least 240px plus a 360px workspace. These are local space budgets, not compact breakpoints. The app sidebar shrinks from its preferred 320px toward a 200px minimum to leave a 400px center target; its preferred width fits at 720px. Temporary width clamps are render-only; widening restores the user's saved sidebar widths.

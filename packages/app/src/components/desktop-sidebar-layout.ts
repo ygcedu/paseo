@@ -26,9 +26,9 @@ export function resolveDesktopAppChromeLayout(input: {
   sidebarControlsEnabled: boolean;
 }) {
   const sidebarOwnsTopLeft = input.desktopSidebarRendered && input.hasTopLeftWindowControls;
-  let sidebarToggleOwner: "none" | "window" | "content" = "none";
+  let sidebarToggleOwner: "none" | "content" = "none";
   if (input.sidebarControlsEnabled) {
-    sidebarToggleOwner = input.hasTopLeftWindowControls ? "window" : "content";
+    sidebarToggleOwner = "content";
   }
   return {
     sidebarCorners: sidebarOwnsTopLeft ? ("top-left" as const) : ("none" as const),

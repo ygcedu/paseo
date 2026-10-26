@@ -225,6 +225,7 @@ export interface LightThemeConfig {
   surface4: string;
   surfaceDiffEmpty: string;
   surfaceSidebar: string;
+  surfaceShell?: string;
   foreground: string;
   foregroundMuted: string;
   foregroundExtraMuted: string;
@@ -266,6 +267,7 @@ export function buildLightSemanticColors(tint: LightThemeConfig) {
     surface3: tint.surface3,
     surface4: tint.surface4,
     surfaceDiffEmpty: tint.surfaceDiffEmpty,
+    surfaceShell: tint.surfaceShell ?? tint.surfaceSidebar,
     surfaceSidebar: tint.surfaceSidebar,
     surfaceSidebarHover: tint.surface3,
     surfaceSidebarSelected: tint.surface4,
@@ -329,6 +331,7 @@ const lightSemanticColors = buildLightSemanticColors({
   surface3: "#e4e4e7",
   surface4: "#d4d4d8",
   surfaceDiffEmpty: "#f6f6f6",
+  surfaceShell: "#dce2e9",
   surfaceSidebar: "#f4f4f5",
   foreground: "#1a1a1e",
   foregroundMuted: "#71717a",
@@ -358,6 +361,7 @@ export interface DarkThemeConfig {
   surface4: string;
   surfaceDiffEmpty: string;
   surfaceSidebar: string;
+  surfaceShell?: string;
   foregroundMuted: string;
   foregroundExtraMuted: string;
   border: string;
@@ -399,6 +403,7 @@ export function buildDarkSemanticColors(tint: DarkThemeConfig) {
     surface3: tint.surface3,
     surface4: tint.surface4,
     surfaceDiffEmpty: tint.surfaceDiffEmpty,
+    surfaceShell: tint.surfaceShell ?? tint.surfaceSidebar,
     surfaceSidebar: tint.surfaceSidebar,
     surfaceSidebarHover: tint.surface1,
     surfaceSidebarSelected: tint.surface2,
@@ -468,6 +473,7 @@ const paseoDarkColors = buildDarkSemanticColors({
   surface3: "#434645",
   surface4: "#595B5B",
   surfaceDiffEmpty: "#252827",
+  surfaceShell: "#101412",
   surfaceSidebar: "#141716",
   foregroundMuted: "#A1A5A4",
   foregroundExtraMuted: "#717574",

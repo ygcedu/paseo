@@ -51,10 +51,7 @@ export function ResizeHandle({
   const pointerStatesRef = useRef(new Map<number, PointerState>());
   const touchDragRef = useRef<ResizeHandleDrag | null>(null);
   const cursorBeforeDragRef = useRef<string | null>(null);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [active, setActive] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const highlighted = active || dragging;
 
   const handlePointerDown = useCallback(
     (event: RNPointerEvent) => {
@@ -180,20 +177,6 @@ export function ResizeHandle({
           .failOffsetX([-SIDEBAR_RESIZE_FAIL_OFFSET, SIDEBAR_RESIZE_FAIL_OFFSET]);
   }, [containerSize, direction, groupId, index, onPreviewResizeSplit, onResizeSplit, sizes]);
 
-  const handlePointerEnter = useCallback(() => {
-    hoverTimerRef.current = setTimeout(() => {
-      setActive(true);
-    }, 150);
-  }, []);
-
-  const handlePointerLeave = useCallback(() => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    setActive(false);
-  }, []);
-
   const handleStyle = useMemo(
     () => [
       styles.handle,
@@ -201,14 +184,6 @@ export function ResizeHandle({
       { backgroundColor: theme.colors.border },
     ],
     [direction, theme.colors.border],
-  );
-  const highlightStyle = useMemo(
-    () => [
-      styles.highlight,
-      direction === "horizontal" ? styles.highlightHorizontal : styles.highlightVertical,
-      { backgroundColor: theme.colors.accent },
-    ],
-    [direction, theme.colors.accent],
   );
   const hitAreaStyle = useMemo(
     () => [
@@ -241,29 +216,20 @@ export function ResizeHandle({
     () => [
       styles.touchGrip,
       direction === "horizontal" ? styles.touchGripHorizontal : styles.touchGripVertical,
-      highlighted ? styles.touchGripVisible : styles.touchGripHidden,
+      dragging ? styles.touchGripVisible : styles.touchGripHidden,
       { backgroundColor: theme.colors.foreground },
     ],
-    [direction, highlighted, theme.colors.foreground],
+    [direction, dragging, theme.colors.foreground],
   );
 
   return (
     <View style={handleStyle} testID={testID}>
-      {highlighted && (
-        <View
-          pointerEvents="none"
-          style={highlightStyle}
-          testID={testID ? `${testID}-highlight` : undefined}
-        />
-      )}
       {finePointer ? (
         <View
           role="separator"
           aria-orientation={direction === "horizontal" ? "vertical" : "horizontal"}
           style={hitAreaStyle}
           onPointerDown={handlePointerDown}
-          onPointerEnter={handlePointerEnter}
-          onPointerLeave={handlePointerLeave}
         />
       ) : (
         <GestureDetector gesture={touchGesture}>
@@ -294,22 +260,6 @@ const styles = StyleSheet.create((_theme) => ({
   handleVertical: {
     height: 1,
     width: "100%",
-  },
-  highlight: {
-    position: "absolute",
-    zIndex: 5,
-  },
-  highlightHorizontal: {
-    top: 0,
-    bottom: 0,
-    width: 3,
-    left: -1,
-  },
-  highlightVertical: {
-    left: 0,
-    right: 0,
-    height: 3,
-    top: -1,
   },
   hitArea: {
     position: "absolute",

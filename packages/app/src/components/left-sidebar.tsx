@@ -1,14 +1,8 @@
 import { SidebarSectionHeader } from "@/components/sidebar/sidebar-section-header";
 import { SidebarQuickFilters } from "@/components/sidebar/quick-filters";
 import { router } from "expo-router";
-import {
-  CircleGauge,
-  FolderPlus,
-  GitBranch,
-  Server,
-  Settings,
-  type LucideIcon,
-} from "lucide-react-native";
+import { CircleGauge, FolderPlus, Server, Settings, type LucideIcon } from "lucide-react-native";
+
 import { useTranslation } from "react-i18next";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
@@ -75,8 +69,6 @@ import { SidebarCalloutSlot } from "./sidebar-callout-slot";
 import { SidebarWorkspaceList } from "./sidebar-workspace-list";
 
 type SidebarTheme = ReturnType<typeof useUnistyles>["theme"];
-
-const DEV_BUILD_LABEL = process.env.EXPO_PUBLIC_PASEO_DEV_BUILD_LABEL?.trim() || null;
 
 interface SidebarSharedProps {
   theme: SidebarTheme;
@@ -622,7 +614,6 @@ function MobileSidebar({
 }
 
 function DesktopSidebar({
-  theme,
   workspaceGroups,
   projectIconTargets,
   pinnedGroups,
@@ -741,24 +732,11 @@ function DesktopSidebar({
       pointerEvents={active ? "auto" : "none"}
       style={desktopSidebarStyle}
     >
-      <View style={desktopSidebarBorderStyle}>
+      <View style={desktopSidebarBorderStyle} testID="desktop-navigation-panel">
         <View style={styles.sidebarDragArea}>
-          {ownsTopLeft || DEV_BUILD_LABEL ? (
+          {ownsTopLeft ? (
             <View style={styles.desktopChromeRow}>
               <TitlebarDragRegion />
-              {DEV_BUILD_LABEL ? (
-                <View
-                  pointerEvents="none"
-                  style={styles.devBuildBadge}
-                  testID="dev-build-label"
-                  accessibilityLabel={`Development build: ${DEV_BUILD_LABEL}`}
-                >
-                  <GitBranch size={12} color={theme.colors.accentForeground} />
-                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.devBuildBadgeText}>
-                    {DEV_BUILD_LABEL}
-                  </Text>
-                </View>
-              ) : null}
             </View>
           ) : (
             <TitlebarDragRegion />
@@ -798,14 +776,13 @@ function DesktopSidebar({
           handleAddHost={handleAddHost}
           handleOpenHostSettings={handleOpenHostSettings}
         />
-
-        <SidebarResizeHandle
-          edge="right"
-          gesture={resizeGesture}
-          pressed={resizePressed}
-          testID="left-sidebar-resize-handle"
-        />
       </View>
+      <SidebarResizeHandle
+        edge="right"
+        gesture={resizeGesture}
+        pressed={resizePressed}
+        testID="left-sidebar-resize-handle"
+      />
     </Animated.View>
   );
 }
@@ -850,9 +827,13 @@ const styles = StyleSheet.create((theme) => ({
     marginRight: theme.spacing[2],
   },
   desktopSidebarBorder: {
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border,
+    marginLeft: theme.spacing[2],
+    marginVertical: theme.spacing[2],
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.border,
     backgroundColor: theme.colors.surfaceSidebar,
+    overflow: "hidden",
   },
   sidebarDragArea: {
     position: "relative",
@@ -867,23 +848,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[3],
     borderBottomWidth: theme.borderWidth[1],
     borderBottomColor: "transparent",
-  },
-  devBuildBadge: {
-    maxWidth: "60%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    paddingHorizontal: theme.spacing[2],
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.accent,
-  },
-  devBuildBadgeText: {
-    minWidth: 0,
-    flexShrink: 1,
-    color: theme.colors.accentForeground,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
   },
   footerContainer: {
     backgroundColor: theme.colors.surface1,

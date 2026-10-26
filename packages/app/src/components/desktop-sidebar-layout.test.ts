@@ -20,7 +20,7 @@ describe("desktop sidebar layout", () => {
     ).toBe(false);
   });
 
-  it("keeps the sidebar toggle window-owned beside left window controls", () => {
+  it("keeps the sidebar toggle in the content header on both macOS and web", () => {
     expect(
       resolveDesktopAppChromeLayout({
         desktopSidebarRendered: true,
@@ -30,7 +30,7 @@ describe("desktop sidebar layout", () => {
     ).toEqual({
       sidebarCorners: "top-left",
       contentCorners: "top-right",
-      sidebarToggleOwner: "window",
+      sidebarToggleOwner: "content",
     });
     expect(
       resolveDesktopAppChromeLayout({
@@ -52,11 +52,11 @@ describe("desktop sidebar layout", () => {
     ).toEqual({
       sidebarCorners: "none",
       contentCorners: "both",
-      sidebarToggleOwner: "window",
+      sidebarToggleOwner: "content",
     });
   });
 
-  it("hides the window-owned sidebar toggle when app chrome is suppressed", () => {
+  it("hides the sidebar toggle when app chrome is suppressed", () => {
     expect(
       resolveDesktopAppChromeLayout({
         desktopSidebarRendered: false,
