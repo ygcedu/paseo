@@ -29,6 +29,20 @@ the titlebar row. Production builds leave the variable unset and show no label.
 
 `npm run dev` is only a shorthand for `npm run dev:server`. Keep `127.0.0.1:6767` for the packaged app and production-style `~/.paseo` state.
 
+## Local desktop installers
+
+The workspace run menu exposes `build-macos` and `build-windows`. Both are one-shot
+commands, separate from the `desktop` development service. Run them from the repository
+root with `npm run build:desktop:mac` or `npm run build:desktop:windows`.
+
+The local Mac command targets Apple Silicon and uses an ad-hoc signature without notarization.
+It disables hardened runtime because ad-hoc helper processes cannot satisfy library validation
+against the bundled Electron framework. The Windows command targets x64. Installers go to `packages/desktop/release/`; neither
+command publishes a release. Use a Windows machine for Windows builds so optional
+native dependencies match the target. For Intel Macs or other architectures, use
+`npm run build:desktop -- --publish never` with the appropriate electron-builder flags.
+Official signing and release builds stay in the desktop release workflow.
+
 ## Nix desktop package
 
 The flake exposes `packages.<system>.desktop` on Linux and macOS:

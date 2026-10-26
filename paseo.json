@@ -27,6 +27,12 @@
     },
     "typecheck": {
       "command": "npm run typecheck"
+    },
+    "build-macos": {
+      "command": "npm run build:desktop:mac"
+    },
+    "build-windows": {
+      "command": "npm run build:desktop:windows"
     }
   }
 }
