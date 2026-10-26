@@ -39,6 +39,7 @@ export interface WorkerKillAndWaitOptions {
 }
 
 export type TerminalWorkerRequest =
+  | { type: "setTerminalTitle"; requestId: string; terminalId: string; title: string }
   | {
       type: "createTerminal";
       requestId: string;

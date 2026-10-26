@@ -1,3 +1,6 @@
+import { useTerminalLabelStore } from "@/stores/terminal-label-store";
+import { createLocalTerminal } from "./create-local-terminal";
+import type { WorkspaceTabLaunchDestination } from "@/workspace-tabs/launcher";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
@@ -19,9 +22,7 @@ import {
   upsertCreatedTerminalPayload,
 } from "@/screens/workspace/terminals/state";
 
-export type TerminalTabDestination =
-  | { kind: "open"; paneId?: string }
-  | { kind: "replace"; tabId: string };
+export type TerminalTabDestination = WorkspaceTabLaunchDestination;
 
 interface PendingTerminalCreateInput {
   destination: TerminalTabDestination;
@@ -134,24 +135,35 @@ export function useWorkspaceTerminals(input: UseWorkspaceTerminalsInput) {
         throw new Error(t("workspace.terminal.hostDisconnected"));
       }
       const profile = _input.profile ? resolveTerminalProfileLaunch(_input.profile, "") : undefined;
-      const payload = profile
-        ? await client.createTerminal(workspaceDirectory, profile.name, undefined, {
-            command: profile.command,
-            args: profile.args,
-            workspaceId: normalizedWorkspaceId || undefined,
-          })
-        : await client.createTerminal(workspaceDirectory, undefined, undefined, {
-            workspaceId: normalizedWorkspaceId || undefined,
+      const result = profile
+        ? {
+            payload: await client.createTerminal(workspaceDirectory, profile.name, undefined, {
+              command: profile.command,
+              args: profile.args,
+              workspaceId: normalizedWorkspaceId || undefined,
+            }),
+            namingError: null,
+          }
+        : await createLocalTerminal({
+            client,
+            cwd: workspaceDirectory,
+            workspaceId: normalizedWorkspaceId,
           });
+      const { payload } = result;
+      if (!profile && payload.terminal) {
+        useTerminalLabelStore
+          .getState()
+          .setLabel(normalizedServerId, payload.terminal.id, payload.terminal.name);
+      }
       // The daemon reports a failed spawn (e.g. a profile command that isn't
       // installed) via payload.error with a null terminal. Surface it instead
       // of silently treating the create as a no-op success.
       if (!payload.terminal && payload.error) {
         throw new Error(payload.error);
       }
-      return payload;
+      return result;
     },
-    onSuccess: (payload, createInput) => {
+    onSuccess: ({ payload, namingError }, createInput) => {
       const createdTerminal = payload.terminal;
       if (createdTerminal) {
         queryClient.setQueryData<ListTerminalsPayload>(queryKey, (current) =>
@@ -164,6 +176,7 @@ export function useWorkspaceTerminals(input: UseWorkspaceTerminalsInput) {
       }
 
       void queryClient.invalidateQueries({ queryKey });
+      if (namingError) onTerminalCreateFailed(namingError);
       if (createdTerminal) {
         onTerminalCreated({
           terminalId: createdTerminal.id,
@@ -184,6 +197,7 @@ export function useWorkspaceTerminals(input: UseWorkspaceTerminalsInput) {
       if (!payload.success) {
         throw new Error("Unable to close terminal");
       }
+      useTerminalLabelStore.getState().removeLabel(normalizedServerId, terminalId);
       return payload;
     },
   });

@@ -98,6 +98,11 @@ test.describe("Workspace terminal tab rename", () => {
       const tab = page.getByTestId(`workspace-tab-terminal_${terminalId}`).first();
       await expect(tab).toBeVisible({ timeout: 15_000 });
 
+      await expect(tab).toHaveText("Local");
+      // Reproduce an older daemon delivering a shell title after creation.
+      await workspace.client.renameTerminal({ terminalId, title: workspace.repoPath });
+      await page.reload();
+      await expect(tab).toHaveText("Local");
       await tab.click({ button: "right" });
       const renameItem = page.getByRole("menuitem", { name: "Rename", exact: true });
       await expect(renameItem).toBeVisible({ timeout: 10_000 });
@@ -115,6 +120,8 @@ test.describe("Workspace terminal tab rename", () => {
       await expect
         .poll(() => fetchTerminalTitle(workspace, terminalId!))
         .toBe("My Renamed Terminal");
+      await page.reload();
+      await expect(tab).toHaveText("My Renamed Terminal");
     } finally {
       await cleanupTerminal(workspace, terminalId);
     }

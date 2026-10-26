@@ -1104,3 +1104,65 @@ it("rejects createTerminal and registers nothing when the worker cannot start th
   expect(await manager.getTerminals("/workspace")).toEqual([]);
   expect(snapshots).toEqual([]);
 });
+
+it("pins manual titles across in-flight worker shell title events", async () => {
+  const worker = new FakeTerminalWorker();
+  manager = createWorkerTerminalManager({ forkWorker: () => worker });
+  worker.emitWorkerMessage({
+    type: "terminalCreated",
+    terminal: {
+      id: "local",
+      name: "Local",
+      cwd: "/workspace",
+      workspaceId: "ws-test",
+      activity: null,
+    },
+    state: createTerminalState(),
+  });
+  expect(manager.setTerminalTitle("local", "Local")).toBe(true);
+  expect(worker.sentMessages).toContainEqual(
+    expect.objectContaining({
+      type: "setTerminalTitle",
+      terminalId: "local",
+      title: "Local",
+    }),
+  );
+  worker.emitWorkerMessage({
+    type: "terminalTitleChange",
+    terminalId: "local",
+    title: "/workspace",
+  });
+  const session = manager.getTerminal("local");
+  expect(session?.getTitle()).toBe("Local");
+  expect(session?.getState().title).toBe("Local");
+  expect(manager.setTerminalTitle("local", "Renamed")).toBe(true);
+  worker.emitWorkerMessage({ type: "terminalTitleChange", terminalId: "local", title: "Local" });
+  expect(session?.getTitle()).toBe("Renamed");
+});
+
+it("pins the title in the actual terminal worker before later OSC updates", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "worker-manual-title-"));
+  temporaryDirs.push(cwd);
+  manager = createWorkerTerminalManager();
+  const session = trackTerminal(
+    await manager.createTerminal({
+      workspaceId: "ws-test",
+      cwd,
+      ...nodeTerminalCommand(`
+      process.stdin.on("data", () => {
+        process.stdout.write("\\u001b]0;Shell title\\u0007");
+        process.stdout.write("OSC_DONE");
+      });
+    `),
+    }),
+  );
+  manager.setTerminalTitle(session.id, "Local");
+  session.send({ type: "input", data: "title\r" });
+  await waitForCondition(async () => {
+    const snapshot = await manager!.getTerminalState(session.id);
+    return snapshot !== null && getRenderedTextFromState(snapshot.state).includes("OSC_DONE");
+  }, 10000);
+  const snapshot = await manager.getTerminalState(session.id);
+  expect(snapshot?.state.title).toBe("Local");
+  expect(session.getTitle()).toBe("Local");
+});

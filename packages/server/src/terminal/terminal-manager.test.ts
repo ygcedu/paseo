@@ -134,10 +134,25 @@ it("creates additional terminal with auto-incrementing name", async () => {
   await manager.createTerminal({ cwd, workspaceId: "ws-test" });
   const second = await manager.createTerminal({ cwd, workspaceId: "ws-test" });
 
-  expect(second.name).toBe("Terminal 2");
+  expect(second.name).toBe("Local(2)");
 
   const terminals = await manager.getTerminals(cwd);
   expect(terminals.length).toBe(2);
+});
+
+it("keeps Local labels stable across shell titles and scopes numbering to the workspace", async () => {
+  manager = createTerminalManager();
+  const cwd = realpathSync(tmpdir());
+  const first = await manager.createTerminal({ cwd, workspaceId: "ws-test" });
+  const second = await manager.createTerminal({ cwd, workspaceId: "ws-test" });
+  const other = await manager.createTerminal({ cwd, workspaceId: "ws-other" });
+  expect(first.getTitle()).toBe("Local");
+  expect(second.getTitle()).toBe("Local(2)");
+  expect(other.getTitle()).toBe("Local");
+  manager.setTerminalTitle(first.id, "My shell");
+  const third = await manager.createTerminal({ cwd, workspaceId: "ws-test" });
+  expect(first.getTitle()).toBe("My shell");
+  expect(third.getTitle()).toBe("Local(3)");
 });
 
 it("uses custom name when provided", async () => {
@@ -156,7 +171,7 @@ it("creates first terminal if none exist", async () => {
   const cwd = realpathSync(tmpdir());
   const session = await manager.createTerminal({ cwd, workspaceId: "ws-test" });
 
-  expect(session.name).toBe("Terminal 1");
+  expect(session.name).toBe("Local");
 
   const terminals = await manager.getTerminals(cwd);
   expect(terminals.length).toBe(1);
@@ -369,11 +384,11 @@ it("emits cwd snapshots when terminals are created", async () => {
 
   expect(snapshots).toContainEqual({
     cwd,
-    terminals: [{ name: "Terminal 1" }],
+    terminals: [{ name: "Local" }],
   });
   expect(snapshots).toContainEqual({
     cwd,
-    terminals: [{ name: "Terminal 1" }, { name: "Dev Server" }],
+    terminals: [{ name: "Local" }, { name: "Dev Server" }],
   });
 
   unsubscribe();

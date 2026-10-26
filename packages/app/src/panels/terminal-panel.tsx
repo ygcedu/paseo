@@ -1,3 +1,5 @@
+import { useTerminalLabelStore } from "@/stores/terminal-label-store";
+import { StyleSheet } from "react-native-unistyles";
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -63,7 +65,11 @@ function useTerminalPanelDescriptor(
   );
   const terminal =
     terminalsQuery.data?.terminals.find((entry) => entry.id === target.terminalId) ?? null;
+  const savedLabel = useTerminalLabelStore(
+    (state) => state.labels[context.serverId]?.[target.terminalId],
+  );
   const label =
+    savedLabel ??
     trimNonEmpty(terminal?.title ?? terminal?.name ?? null) ??
     t("workspace.tabs.fallback.terminal");
 
@@ -105,17 +111,29 @@ function TerminalPanel() {
   }
 
   return (
-    <TerminalPane
-      serverId={serverId}
-      cwd={workspaceDirectory}
-      terminalId={target.terminalId}
-      isWorkspaceFocused={isWorkspaceFocused}
-      isPaneFocused={isPaneFocused}
-      onOpenFileExplorer={handleOpenFileExplorer}
-      onOpenWorkspaceFile={openFileInWorkspace}
-    />
+    <View style={styles.content} testID="terminal-content-inset">
+      <TerminalPane
+        serverId={serverId}
+        cwd={workspaceDirectory}
+        terminalId={target.terminalId}
+        isWorkspaceFocused={isWorkspaceFocused}
+        isPaneFocused={isPaneFocused}
+        onOpenFileExplorer={handleOpenFileExplorer}
+        onOpenWorkspaceFile={openFileInWorkspace}
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create((theme) => ({
+  content: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
+    padding: theme.spacing[3],
+    backgroundColor: theme.colors.surface0,
+  },
+}));
 
 export const terminalPanelRegistration = definePanel("terminal", {
   component: TerminalPanel,

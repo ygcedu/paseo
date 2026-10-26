@@ -73,6 +73,7 @@ interface WorkerTerminalRecord {
   messageListeners: Set<(msg: ServerMessage) => void>;
   exitListeners: Set<(info: TerminalExitInfo) => void>;
   commandFinishedListeners: Set<(info: TerminalCommandFinishedInfo) => void>;
+  manualTitle?: string;
   titleChangeListeners: Set<(title?: string) => void>;
   activityChangeListeners: Set<(transition: TerminalActivityTransition) => void>;
   session: TerminalSession;
@@ -365,7 +366,14 @@ export function createWorkerTerminalManager(
         if (!manualTitle) {
           return;
         }
+        record.manualTitle = manualTitle;
         record.info = { ...record.info, title: manualTitle };
+        record.state = { ...record.state, title: manualTitle };
+        sendBestEffortRequest({
+          type: "setTerminalTitle",
+          terminalId: record.info.id,
+          title: manualTitle,
+        });
         for (const listener of Array.from(record.titleChangeListeners)) {
           listener(manualTitle);
         }
@@ -463,6 +471,8 @@ export function createWorkerTerminalManager(
     if (!record) {
       return;
     }
+    // Ignore shell title events already in flight when a manual rename was applied.
+    if (record.manualTitle !== undefined) return;
     const nextState = { ...record.state };
     if (message.title) {
       nextState.title = message.title;

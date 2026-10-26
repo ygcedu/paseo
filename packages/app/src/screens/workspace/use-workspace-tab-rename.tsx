@@ -1,3 +1,4 @@
+import { useTerminalLabelStore } from "@/stores/terminal-label-store";
 import { useCallback, useState } from "react";
 import { type QueryClient } from "@tanstack/react-query";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
@@ -40,7 +41,11 @@ export function useWorkspaceTabRename(
       if (tab.target.kind === "terminal") {
         const { terminalId } = tab.target;
         const terminal = terminalsData?.terminals.find((entry) => entry.id === terminalId) ?? null;
-        const currentTitle = terminal?.title ?? terminal?.name ?? "";
+        const currentTitle =
+          useTerminalLabelStore.getState().labels[normalizedServerId]?.[terminalId] ??
+          terminal?.title ??
+          terminal?.name ??
+          "";
         setRenamingTab({ kind: "terminal", id: terminalId, currentTitle });
         return;
       }
@@ -70,6 +75,7 @@ export function useWorkspaceTabRename(
         if (!result.success) {
           throw new Error(result.error ?? "Failed to rename terminal");
         }
+        useTerminalLabelStore.getState().setLabel(normalizedServerId, renamingTab.id, trimmed);
         void queryClient.invalidateQueries({ queryKey: terminalsQueryKey });
         return;
       }

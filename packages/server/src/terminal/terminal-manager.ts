@@ -101,6 +101,38 @@ function createActivityToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
+function nextLocalTerminalName(sessions: Iterable<TerminalSession>, workspaceId: string): string {
+  const usedNames = new Set(
+    Array.from(sessions)
+      .filter((session) => session.workspaceId === workspaceId)
+      .map((session) => session.name),
+  );
+  let number = 1;
+  let name = "Local";
+  while (usedNames.has(name)) {
+    number += 1;
+    name = `Local(${number})`;
+  }
+  return name;
+}
+
+interface TerminalNamingInput {
+  options: Pick<
+    Parameters<TerminalManager["createTerminal"]>[0],
+    "name" | "title" | "command" | "workspaceId"
+  >;
+  sessions: Iterable<TerminalSession>;
+  count: number;
+}
+
+function resolveTerminalNaming({ options, sessions, count }: TerminalNamingInput) {
+  if (options.name || options.command) {
+    return { name: options.name ?? `Terminal ${count + 1}`, title: options.title };
+  }
+  const name = nextLocalTerminalName(sessions, options.workspaceId);
+  return { name, title: options.title ?? name };
+}
+
 export function createTerminalManager(
   managerOptions: TerminalManagerOptions = {},
 ): TerminalManager {
@@ -325,7 +357,11 @@ export function createTerminalManager(
       assertAbsolutePath(options.cwd);
 
       const terminals = terminalsByCwd.get(options.cwd) ?? [];
-      const defaultName = `Terminal ${terminals.length + 1}`;
+      const { name, title } = resolveTerminalNaming({
+        options,
+        sessions: terminalsById.values(),
+        count: terminals.length,
+      });
       const inheritedEnv = resolveDefaultEnvForCwd(options.cwd);
       const mergedEnv =
         inheritedEnv || options.env ? { ...inheritedEnv, ...options.env } : undefined;
@@ -348,8 +384,8 @@ export function createTerminalManager(
             id: terminalId,
             cwd: options.cwd,
             workspaceId: options.workspaceId,
-            name: options.name ?? defaultName,
-            ...(options.title ? { title: options.title } : {}),
+            name,
+            ...(title ? { title } : {}),
             ...(options.command ? { command: options.command } : {}),
             ...(options.args ? { args: options.args } : {}),
             ...(options.rows !== undefined ? { rows: options.rows } : {}),
