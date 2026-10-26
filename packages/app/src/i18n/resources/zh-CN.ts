@@ -2,6 +2,25 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  workspaceSearch: {
+    filters: "文件筛选",
+    keyboardHint: "↑ ↓  选择    Enter  打开    Esc  关闭",
+    noResultsHint: "尝试其他关键词，或调整文件筛选。",
+    clear: "清空搜索",
+    title: "在文件中查找",
+    placeholder: "搜索工作目录中的文字…",
+    fileFilter: "文件过滤，例如 *.tsx 或 src/**",
+    caseSensitive: "区分大小写",
+    wholeWord: "全字匹配",
+    regex: "使用正则表达式",
+    searching: "搜索中…",
+    count: "{{count}} 个匹配行 · {{files}} 个文件",
+    hint: "输入文字以搜索当前工作目录",
+    truncated: "结果已截断，请缩小搜索范围。",
+    scope: "遵循忽略规则，跳过隐藏文件、node_modules 和大于 2 MB 的文件。",
+    environmentRequired:
+      "搜索需要宿主机上有 ripgrep（rg）和 POSIX shell。安装 ripgrep 后重试即可，无需更新 daemon。",
+  },
   paneFind: {
     connectionFailure: "无法搜索此聊天。请检查主机连接后重试。",
     historyChangedFailure: "搜索期间聊天已更改。请重新搜索。",

@@ -2,6 +2,25 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  workspaceSearch: {
+    filters: "ファイルフィルター",
+    keyboardHint: "↑ ↓  選択    Enter  開く    Esc  閉じる",
+    noResultsHint: "別の語句を入力するか、ファイルフィルターを変更してください。",
+    clear: "検索をクリア",
+    title: "ファイル内を検索",
+    placeholder: "ワークスペース内のテキストを検索…",
+    fileFilter: "ファイルフィルター（例：*.tsx、src/**）",
+    caseSensitive: "大文字と小文字を区別",
+    wholeWord: "単語全体を一致",
+    regex: "正規表現を使用",
+    searching: "検索中…",
+    count: "{{files}} ファイル内の {{count}} 行が一致",
+    hint: "テキストを入力してワークスペースを検索",
+    truncated: "結果が上限に達しました。検索範囲を絞ってください。",
+    scope: "除外ルールに従い、隠しファイル、依存関係、2 MB を超えるファイルは検索しません。",
+    environmentRequired:
+      "検索にはホスト上の ripgrep（rg）と POSIX シェルが必要です。ripgrep をインストールして再試行してください。daemon の更新は不要です。",
+  },
   paneFind: {
     connectionFailure:
       "このチャットを検索できませんでした。ホストへの接続を確認して再試行してください。",

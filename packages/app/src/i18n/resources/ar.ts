@@ -2,6 +2,25 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ar: TranslationResources = {
+  workspaceSearch: {
+    filters: "مرشح الملفات",
+    keyboardHint: "↑ ↓  تنقل    Enter  فتح    Esc  إغلاق",
+    noResultsHint: "جرّب نصًا آخر أو عدّل مرشح الملفات.",
+    clear: "مسح البحث",
+    title: "البحث في الملفات",
+    placeholder: "البحث في محتوى مساحة العمل…",
+    fileFilter: "مرشح الملفات، مثل *.tsx أو src/**",
+    caseSensitive: "مطابقة حالة الأحرف",
+    wholeWord: "مطابقة الكلمة كاملة",
+    regex: "استخدام تعبير نمطي",
+    searching: "جارٍ البحث…",
+    count: "{{count}} سطر مطابق في {{files}} ملف",
+    hint: "أدخل نصًا للبحث في مساحة العمل",
+    truncated: "النتائج محدودة. ضيّق نطاق البحث.",
+    scope: "يحترم قواعد التجاهل ويتخطى الملفات المخفية والتبعيات والملفات الأكبر من 2 ميغابايت.",
+    environmentRequired:
+      "يتطلب البحث ripgrep (rg) وPOSIX shell على المضيف. ثبّت ripgrep ثم أعد المحاولة؛ لا يلزم تحديث daemon.",
+  },
   paneFind: {
     connectionFailure: "تعذر البحث في هذه المحادثة. تحقق من الاتصال بالمضيف وأعد المحاولة.",
     historyChangedFailure: "تغيّرت المحادثة أثناء البحث. أعد البحث.",

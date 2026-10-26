@@ -1,3 +1,4 @@
+import { SEARCH_TERMINAL_NAME } from "@/workspace-search/types";
 import type { CreateTerminalResponse, ListTerminalsResponse } from "@getpaseo/protocol/messages";
 import { upsertTerminalListEntry } from "@/utils/terminal-list";
 
@@ -74,7 +75,10 @@ export function collectStandaloneTerminalIds(input: {
   scriptTerminalIds: Set<string>;
 }): string[] {
   return input.terminals
-    .filter((terminal) => !input.scriptTerminalIds.has(terminal.id))
+    .filter(
+      (terminal) =>
+        terminal.name !== SEARCH_TERMINAL_NAME && !input.scriptTerminalIds.has(terminal.id),
+    )
     .map((terminal) => terminal.id);
 }
 

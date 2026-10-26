@@ -2,6 +2,26 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  workspaceSearch: {
+    filters: "Filtre de fichiers",
+    keyboardHint: "↑ ↓  Parcourir    Entrée  Ouvrir    Échap  Fermer",
+    noResultsHint: "Essayez un autre terme ou ajustez le filtre de fichiers.",
+    clear: "Effacer la recherche",
+    title: "Rechercher dans les fichiers",
+    placeholder: "Rechercher du texte dans l’espace de travail…",
+    fileFilter: "Filtre de fichiers, p. ex. *.tsx ou src/**",
+    caseSensitive: "Respecter la casse",
+    wholeWord: "Mot entier",
+    regex: "Utiliser une expression régulière",
+    searching: "Recherche…",
+    count: "{{count}} lignes correspondantes dans {{files}} fichiers",
+    hint: "Saisissez du texte pour rechercher dans cet espace de travail",
+    truncated: "Résultats limités. Affinez la recherche.",
+    scope:
+      "Respecte les règles d’exclusion ; ignore les fichiers cachés, les dépendances et les fichiers de plus de 2 Mo.",
+    environmentRequired:
+      "La recherche nécessite ripgrep (rg) et un shell POSIX sur l’hôte. Installez ripgrep puis réessayez ; aucune mise à jour du daemon n’est nécessaire.",
+  },
   paneFind: {
     connectionFailure:
       "Impossible de rechercher dans cette conversation. Vérifiez la connexion à l’hôte et réessayez.",

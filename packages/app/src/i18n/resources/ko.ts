@@ -2,6 +2,25 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  workspaceSearch: {
+    filters: "파일 필터",
+    keyboardHint: "↑ ↓  선택    Enter  열기    Esc  닫기",
+    noResultsHint: "다른 검색어를 입력하거나 파일 필터를 조정하세요.",
+    clear: "검색 지우기",
+    title: "파일에서 찾기",
+    placeholder: "워크스페이스 내용 검색…",
+    fileFilter: "파일 필터, 예: *.tsx 또는 src/**",
+    caseSensitive: "대소문자 구분",
+    wholeWord: "단어 단위로 일치",
+    regex: "정규식 사용",
+    searching: "검색 중…",
+    count: "{{files}}개 파일에서 {{count}}개 행 일치",
+    hint: "텍스트를 입력하여 워크스페이스 검색",
+    truncated: "결과가 제한되었습니다. 검색 범위를 좁히세요.",
+    scope: "제외 규칙을 따르며 숨김 파일, 종속성 및 2 MB보다 큰 파일은 건너뜁니다.",
+    environmentRequired:
+      "검색하려면 호스트에 ripgrep(rg)와 POSIX 셸이 필요합니다. ripgrep를 설치한 후 다시 시도하세요. daemon 업데이트는 필요하지 않습니다.",
+  },
   paneFind: {
     connectionFailure: "이 채팅을 검색할 수 없습니다. 호스트 연결을 확인하고 다시 시도하세요.",
     historyChangedFailure: "검색 중에 채팅이 변경되었습니다. 다시 검색하세요.",

@@ -2,6 +2,26 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ru: TranslationResources = {
+  workspaceSearch: {
+    filters: "Фильтр файлов",
+    keyboardHint: "↑ ↓  Выбор    Enter  Открыть    Esc  Закрыть",
+    noResultsHint: "Попробуйте другой запрос или измените фильтр файлов.",
+    clear: "Очистить поиск",
+    title: "Поиск в файлах",
+    placeholder: "Поиск текста в рабочем пространстве…",
+    fileFilter: "Фильтр файлов, например *.tsx или src/**",
+    caseSensitive: "Учитывать регистр",
+    wholeWord: "Слово целиком",
+    regex: "Регулярное выражение",
+    searching: "Поиск…",
+    count: "Совпадения в {{count}} строках, файлов: {{files}}",
+    hint: "Введите текст для поиска в рабочем пространстве",
+    truncated: "Результаты ограничены. Уточните поиск.",
+    scope:
+      "Учитываются правила исключения; скрытые файлы, зависимости и файлы больше 2 МБ пропускаются.",
+    environmentRequired:
+      "Для поиска нужны ripgrep (rg) и оболочка POSIX на хосте. Установите ripgrep и повторите попытку; обновлять daemon не нужно.",
+  },
   paneFind: {
     connectionFailure:
       "Не удалось выполнить поиск в чате. Проверьте подключение к хосту и повторите попытку.",

@@ -1,3 +1,4 @@
+import { useRevealExplorerEntry } from "@/file-explorer/use-reveal-entry";
 import {
   useCallback,
   useEffect,
@@ -5,6 +6,7 @@ import {
   useRef,
   useState,
   type ReactElement,
+  type ComponentProps,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -398,6 +400,8 @@ function TreeRowItem({
 }
 
 interface FileExplorerPaneProps {
+  revealPath?: string;
+  revealRevision?: number;
   serverId: string;
   workspaceId?: string | null;
   workspaceRoot: string;
@@ -407,6 +411,8 @@ interface FileExplorerPaneProps {
 }
 
 export function FileExplorerPane({
+  revealPath,
+  revealRevision = 0,
   serverId,
   workspaceId,
   workspaceRoot,
@@ -525,6 +531,41 @@ export function FileExplorerPane({
     setExpandedPathsForWorkspace,
     showHiddenFiles,
     workspaceStateKey,
+  ]);
+
+  useEffect(() => {
+    if (!revealPath || !workspaceStateKey) return;
+    const filePath = revealPath;
+    const scopeKey = workspaceStateKey;
+    let cancelled = false;
+    const ancestors = ["."];
+    const segments = revealPath.split("/");
+    for (let index = 1; index < segments.length; index++)
+      ancestors.push(segments.slice(0, index).join("/"));
+    async function reveal() {
+      for (const path of ancestors) {
+        if (cancelled) return;
+        const directory = await requestDirectoryListing(path, {
+          recordHistory: false,
+          setCurrentPath: false,
+        });
+        if (!directory) return;
+      }
+      if (cancelled) return;
+      setExpandedPathsForWorkspace(scopeKey, (paths) => [...new Set([...paths, ...ancestors])]);
+      selectExplorerEntry(filePath);
+    }
+    void reveal();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    revealPath,
+    revealRevision,
+    workspaceStateKey,
+    requestDirectoryListing,
+    setExpandedPathsForWorkspace,
+    selectExplorerEntry,
   ]);
 
   const handleToggleDirectory = useCallback(
@@ -1070,6 +1111,8 @@ export function FileExplorerPane({
         showInitialLoading={showInitialLoading}
         showBackFromError={showBackFromError}
         listRows={listRows}
+        revealPath={revealPath}
+        revealRevision={revealRevision}
         onNewEntryAtRoot={fsEntryOpsEnabled ? handleNewEntry : undefined}
         currentSortLabel={currentSortLabel}
         isRefreshFetching={isRefreshFetching}
@@ -1139,6 +1182,8 @@ function RootCreationContextTarget({
 }
 
 interface FileExplorerPaneContentProps {
+  revealPath?: string;
+  revealRevision: number;
   error: string | null;
   isCompact: boolean;
   showInitialLoading: boolean;
@@ -1180,6 +1225,40 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
     handleRetry,
     sortTriggerStyle: sortTriggerStyleProp,
   } = props;
+
+  const [revealLayout, setRevealLayout] = useState({ viewportHeight: 0, contentHeight: 0 });
+  const { onLayout: onScrollbarLayout, onContentSizeChange: onScrollbarContentSizeChange } =
+    scrollbar;
+  const onTreeLayout = useCallback<NonNullable<ComponentProps<typeof FlatList>["onLayout"]>>(
+    (event) => {
+      onScrollbarLayout(event);
+      const viewportHeight = event.nativeEvent.layout.height;
+      setRevealLayout((previous) =>
+        previous.viewportHeight === viewportHeight ? previous : { ...previous, viewportHeight },
+      );
+    },
+    [onScrollbarLayout],
+  );
+  const onTreeContentSizeChange = useCallback(
+    (width: number, contentHeight: number) => {
+      onScrollbarContentSizeChange(width, contentHeight);
+      setRevealLayout((previous) =>
+        previous.contentHeight === contentHeight ? previous : { ...previous, contentHeight },
+      );
+    },
+    [onScrollbarContentSizeChange],
+  );
+  const revealIndex = listRows.findIndex(
+    (row) => row.type === "entry" && row.row.entry.path === props.revealPath,
+  );
+  const revealReady = revealLayout.viewportHeight > 0 && revealLayout.contentHeight > 0;
+  const onScrollToIndexFailed = useRevealExplorerEntry({
+    listRef: treeListRef,
+    path: props.revealPath,
+    revision: props.revealRevision,
+    index: revealIndex,
+    ready: revealReady,
+  });
 
   const showHiddenFiles = usePanelStore((state) => state.explorerShowHiddenFiles);
 
@@ -1329,15 +1408,16 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
           ) : (
             <FlatList
               ref={treeListRef}
+              onScrollToIndexFailed={onScrollToIndexFailed}
               style={styles.treeList}
               data={listRows}
               renderItem={renderTreeRow}
               keyExtractor={listRowKeyExtractor}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
-              onLayout={scrollbar.onLayout}
+              onLayout={onTreeLayout}
               onScroll={scrollbar.onScroll}
-              onContentSizeChange={scrollbar.onContentSizeChange}
+              onContentSizeChange={onTreeContentSizeChange}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={!scrollbar.enabled}
               initialNumToRender={24}

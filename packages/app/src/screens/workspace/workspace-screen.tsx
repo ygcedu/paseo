@@ -1,4 +1,5 @@
 import { planTimelineTailFetch } from "@/timeline/timeline-sync-plan";
+import { WorkspaceSearchButton } from "@/workspace-search/button";
 import { useHostFeature } from "@/runtime/host-features";
 import {
   AssistantFileLinkResolverProvider,
@@ -1616,17 +1617,9 @@ function WorkspaceScreenContent({
       if (!tabId || !persistenceKey) {
         return;
       }
-      revealWorkspaceTab(persistenceKey, tabId);
+      if (persistenceKey) revealWorkspaceTab(persistenceKey, tabId);
     },
     [persistenceKey],
-  );
-  const selectTabInPane = useCallback(
-    (paneId: string, tabId: string) => {
-      if (persistenceKey) {
-        selectWorkspaceTabInPane(persistenceKey, paneId, tabId);
-      }
-    },
-    [persistenceKey, selectWorkspaceTabInPane],
   );
   // A "Show all" import can land in another workspace entirely; that
   // agent has no tab here, so it opens its own workspace instead.
@@ -3245,9 +3238,34 @@ function WorkspaceScreenContent({
     workspaceKey: persistenceKey,
   });
 
+  const { revealDirectory } = useFileExplorerActions({
+    serverId: normalizedServerId,
+    workspaceId: normalizedWorkspaceId,
+    workspaceRoot: workspaceDirectory,
+  });
+  const requestFileNavigation = useCallback(
+    (tabId: string) => {
+      if (persistenceKey) revealWorkspaceTab(persistenceKey, tabId);
+    },
+    [persistenceKey],
+  );
+  const selectTabInPane = useCallback(
+    (paneId: string, tabId: string) => {
+      if (persistenceKey) selectWorkspaceTabInPane(persistenceKey, paneId, tabId);
+    },
+    [persistenceKey, selectWorkspaceTabInPane],
+  );
   const headerRight = useMemo(
     () => (
       <View style={styles.headerRight}>
+        {workspaceDirectory ? (
+          <WorkspaceSearchButton
+            onFileNavigation={requestFileNavigation}
+            serverId={normalizedServerId}
+            workspaceId={normalizedWorkspaceId}
+            cwd={workspaceDirectory}
+          />
+        ) : null}
         <PluginHeaderButtons serverId={normalizedServerId} workspaceId={normalizedWorkspaceId} />
         {workspaceDescriptor && workspaceDescriptor.scripts.length > 0 ? (
           <WorkspaceScriptsButton
@@ -3276,6 +3294,7 @@ function WorkspaceScreenContent({
       </View>
     ),
     [
+      requestFileNavigation,
       workspaceDescriptor,
       normalizedServerId,
       normalizedWorkspaceId,
@@ -3425,6 +3444,14 @@ function WorkspaceScreenContent({
             onCloseTabsBelow={handleCloseTabsToRight}
             onCloseOtherTabs={handleCloseOtherTabs}
           />
+          {workspaceDirectory ? (
+            <WorkspaceSearchButton
+              onFileNavigation={requestFileNavigation}
+              serverId={normalizedServerId}
+              workspaceId={normalizedWorkspaceId}
+              cwd={workspaceDirectory}
+            />
+          ) : null}
           <WorkspaceHeaderMenuMobile
             normalizedServerId={normalizedServerId}
             normalizedWorkspaceId={normalizedWorkspaceId}
@@ -3445,6 +3472,7 @@ function WorkspaceScreenContent({
         </CompactWorkspaceHeader>
       ) : null,
     [
+      requestFileNavigation,
       activeTabKey,
       canOpenImportSheet,
       compactHeaderScripts,
@@ -3705,11 +3733,6 @@ function WorkspaceScreenContent({
     desktopFocusModeEnabled,
   ]);
 
-  const { revealDirectory } = useFileExplorerActions({
-    serverId: normalizedServerId,
-    workspaceId: normalizedWorkspaceId,
-    workspaceRoot: workspaceDirectory,
-  });
   const openMarkdownFile = useStableEvent((location: WorkspaceFileLocation) => {
     handleOpenPreferredAssistantFile({ location, parentTabId: activeTabId });
   });

@@ -1,4 +1,23 @@
 export const en = {
+  workspaceSearch: {
+    filters: "File filter",
+    keyboardHint: "↑ ↓  Navigate    Enter  Open    Esc  Close",
+    noResultsHint: "Try another term or adjust the file filter.",
+    clear: "Clear search",
+    title: "Find in Files",
+    placeholder: "Search workspace contents…",
+    fileFilter: "File filter, e.g. *.tsx or src/**",
+    caseSensitive: "Match case",
+    wholeWord: "Match whole word",
+    regex: "Use regular expression",
+    searching: "Searching…",
+    count: "Matches: {{count}} · Files: {{files}}",
+    hint: "Enter text to search this workspace",
+    truncated: "Results limited. Narrow your search to see more.",
+    scope: "Respects ignore rules; skips hidden files, dependencies, and files larger than 2 MB.",
+    environmentRequired:
+      "Search requires ripgrep (rg) and a POSIX shell on the host. Install ripgrep, then retry; no daemon update is needed.",
+  },
   paneFind: {
     connectionFailure: "Could not search this chat. Check the host connection and retry.",
     historyChangedFailure: "The chat changed while searching. Search again.",

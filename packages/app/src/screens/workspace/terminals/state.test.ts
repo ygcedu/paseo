@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { SEARCH_TERMINAL_NAME } from "@/workspace-search/types";
+import { useTerminalLabelStore } from "@/stores/terminal-label-store";
+import { createLocalTerminal } from "./create-local-terminal";
+import { describe, expect, it, vi } from "vitest";
 import {
   collectKnownTerminalIds,
   collectScriptTerminalIds,
@@ -19,6 +22,59 @@ function createdTerminal(id: string): NonNullable<CreateTerminalResponse["payloa
 }
 
 describe("workspace terminal state", () => {
+  it("retains user labels across stale daemon titles, reloads, renames, and hosts", async () => {
+    await useTerminalLabelStore.persist.rehydrate();
+    useTerminalLabelStore.setState({ labels: {} });
+    useTerminalLabelStore.getState().setLabel("host-a", "terminal", "Local");
+    useTerminalLabelStore.getState().setLabel("host-b", "terminal", "Local(2)");
+    await useTerminalLabelStore.persist.rehydrate();
+    expect(useTerminalLabelStore.getState().labels["host-a"]?.terminal).toBe("Local");
+    expect(useTerminalLabelStore.getState().labels["host-b"]?.terminal).toBe("Local(2)");
+    useTerminalLabelStore.getState().setLabel("host-a", "terminal", "My shell");
+    expect(useTerminalLabelStore.getState().labels["host-a"]?.terminal).toBe("My shell");
+    useTerminalLabelStore.getState().removeLabel("host-a", "terminal");
+    expect(useTerminalLabelStore.getState().labels["host-a"]?.terminal).toBeUndefined();
+    expect(useTerminalLabelStore.getState().labels["host-b"]?.terminal).toBe("Local(2)");
+  });
+  it("pins the Local label when the daemon initially returns a shell directory title", async () => {
+    const terminal = { ...createdTerminal("new"), name: "Local(2)", title: "/repo" };
+    const client = {
+      listTerminals: vi.fn(async () => ({
+        terminals: [{ id: "old", name: "Local", title: "Renamed shell" }],
+        requestId: "list",
+      })),
+      createTerminal: vi.fn(async () => ({ terminal, error: null, requestId: "create" })),
+      renameTerminal: vi.fn(async () => ({
+        terminalId: "new",
+        title: "Local(2)",
+        success: true,
+        error: null,
+        requestId: "rename",
+      })),
+    };
+    const result = await createLocalTerminal({ client, cwd: "/repo", workspaceId: "workspace" });
+    expect(client.createTerminal).toHaveBeenCalledWith("/repo", "Local(2)", undefined, {
+      workspaceId: "workspace",
+    });
+    expect(client.renameTerminal).toHaveBeenCalledWith({ terminalId: "new", title: "Local(2)" });
+    expect(result.payload.terminal?.title).toBe("Local(2)");
+    expect(result.namingError).toBeNull();
+  });
+
+  it("keeps the created terminal accessible when naming fails", async () => {
+    const terminal = { ...createdTerminal("new"), title: "/repo" };
+    const client = {
+      listTerminals: vi.fn(async () => ({ terminals: [], requestId: "list" })),
+      createTerminal: vi.fn(async () => ({ terminal, error: null, requestId: "create" })),
+      renameTerminal: vi.fn(async () => {
+        throw new Error("Host disconnected");
+      }),
+    };
+    const result = await createLocalTerminal({ client, cwd: "/repo", workspaceId: "workspace" });
+    expect(result.payload.terminal).toBe(terminal);
+    expect(result.namingError).toBe("Host disconnected");
+  });
+
   it("keeps pending script terminals until they appear or a fresher list arrives", () => {
     const pending = new Map([
       ["older-than-list", 10],
@@ -63,6 +119,7 @@ describe("workspace terminal state", () => {
           listedTerminal("terminal-1"),
           listedTerminal("terminal-2"),
           listedTerminal("script-live"),
+          { ...listedTerminal("search-temp"), name: SEARCH_TERMINAL_NAME },
         ],
         scriptTerminalIds: new Set(["terminal-1", "script-live"]),
       }),

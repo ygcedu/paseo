@@ -2,6 +2,26 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ptBR: TranslationResources = {
+  workspaceSearch: {
+    filters: "Filtro de arquivos",
+    keyboardHint: "↑ ↓  Navegar    Enter  Abrir    Esc  Fechar",
+    noResultsHint: "Tente outro termo ou ajuste o filtro de arquivos.",
+    clear: "Limpar busca",
+    title: "Buscar nos arquivos",
+    placeholder: "Buscar texto no espaço de trabalho…",
+    fileFilter: "Filtro de arquivos, ex.: *.tsx ou src/**",
+    caseSensitive: "Diferenciar maiúsculas",
+    wholeWord: "Palavra inteira",
+    regex: "Usar expressão regular",
+    searching: "Buscando…",
+    count: "{{count}} linhas correspondentes em {{files}} arquivos",
+    hint: "Digite o texto para buscar neste espaço de trabalho",
+    truncated: "Resultados limitados. Refine a busca.",
+    scope:
+      "Respeita as regras de exclusão; ignora arquivos ocultos, dependências e arquivos maiores que 2 MB.",
+    environmentRequired:
+      "A busca requer ripgrep (rg) e um shell POSIX no host. Instale o ripgrep e tente novamente; não é necessário atualizar o daemon.",
+  },
   paneFind: {
     connectionFailure:
       "Não foi possível pesquisar nesta conversa. Verifique a conexão com o host e tente novamente.",

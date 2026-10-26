@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { usePanelState } from "@/panels/use-panel-state";
 import { Text, View } from "react-native";
 import { Files } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -18,7 +20,14 @@ const filesPanelPresentation = {
   icon: ThemedFiles,
 } satisfies PanelPresentation;
 
+const filesRevealSchema = z.object({
+  revealPath: z.string().optional(),
+  revealRevision: z.number().optional(),
+});
+const defaultFilesReveal: z.infer<typeof filesRevealSchema> = {};
+
 function FilesPanel() {
+  const [reveal] = usePanelState(filesRevealSchema, defaultFilesReveal);
   const { t } = useTranslation();
   const { serverId, workspaceId, target, openPreferredTarget, openTargetToSide } = usePaneContext();
   const workspaceRoot = useWorkspaceDirectory(serverId, workspaceId);
@@ -44,6 +53,8 @@ function FilesPanel() {
       serverId={serverId}
       workspaceId={workspaceId}
       workspaceRoot={workspaceRoot}
+      revealPath={reveal.revealPath}
+      revealRevision={reveal.revealRevision}
       onOpenFile={onOpenFile}
       onOpenFileToSide={openTargetToSide ? onOpenFileToSide : undefined}
       onAddToChat={canAddToChat ? addFile : undefined}
