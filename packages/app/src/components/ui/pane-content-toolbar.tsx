@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import {
   Text,
   View,
@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { WORKSPACE_SECONDARY_HEADER_HEIGHT } from "@/constants/layout";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import {
+  type IconButtonChromeState,
   iconButtonChromeGlyphSize,
   iconButtonChromeStyle,
   useIconButtonChromeStyle,
@@ -60,12 +61,14 @@ interface ToolbarButtonCommonProps extends Omit<
   /** What the tooltip says when it is not the label, e.g. a status. Defaults to the label. */
   tooltip?: ReactNode;
   selected?: boolean;
+  selectedTone?: "neutral" | "blue";
   compact?: boolean;
   /** A circular highlight, for buttons inside a pill-shaped container. */
   round?: boolean;
   shortcut?: ShortcutKey[][] | null;
   tooltipSide?: "left" | "right" | "top" | "bottom";
   style?: StyleProp<ViewStyle>;
+  hoverStyle?: StyleProp<ViewStyle>;
 }
 
 type ToolbarButtonProps = ToolbarButtonCommonProps &
@@ -83,11 +86,13 @@ export function ToolbarButton({
   label,
   tooltip: tooltipBody,
   selected = false,
+  selectedTone = "neutral",
   compact = false,
   round = false,
   shortcut,
   tooltipSide = "bottom",
   style,
+  hoverStyle,
   kind = "action",
   onPress,
   disabled,
@@ -102,12 +107,20 @@ export function ToolbarButton({
     round,
     style,
   });
+  const resolvedStyle = useCallback(
+    (state: IconButtonChromeState) => [
+      buttonStyle(state),
+      selected && selectedTone === "blue" && styles.selectedBlue,
+      (state.hovered || state.pressed) && hoverStyle,
+    ],
+    [buttonStyle, selected, selectedTone, hoverStyle],
+  );
   const accessibilityState = useMemo(
     () => ({ disabled: Boolean(disabled), selected }),
     [disabled, selected],
   );
   const tooltip = (
-    <TooltipContent side={tooltipSide} align="center" offset={8}>
+    <TooltipContent side={tooltipSide} align="center" offset={8} style={styles.tooltipSurface}>
       <View style={styles.tooltipRow}>
         {tooltipBody ?? <Text style={styles.tooltipText}>{label}</Text>}
         {shortcut ? <Shortcut chord={shortcut} /> : null}
@@ -126,7 +139,7 @@ export function ToolbarButton({
             accessibilityRole="button"
             accessibilityLabel={label}
             accessibilityState={accessibilityState}
-            style={buttonStyle}
+            style={resolvedStyle}
           >
             {children}
           </DropdownMenuTrigger>
@@ -146,7 +159,7 @@ export function ToolbarButton({
         accessibilityLabel={label}
         accessibilityState={accessibilityState}
         onPress={onPress}
-        style={buttonStyle}
+        style={resolvedStyle}
       >
         {children}
       </TooltipTrigger>
@@ -201,6 +214,7 @@ export function paneContentToolbarIconButtonStyle(
 }
 
 const styles = StyleSheet.create((theme) => ({
+  selectedBlue: { backgroundColor: theme.colors.palette.blue[600] },
   toolbar: {
     height: WORKSPACE_SECONDARY_HEADER_HEIGHT,
     backgroundColor: theme.colors.surface0,
@@ -213,6 +227,10 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: 1,
   },
+  tooltipSurface: {
+    backgroundColor: theme.colors.palette.black,
+    borderColor: theme.colors.palette.black,
+  },
   tooltipRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -220,6 +238,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   tooltipText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.popoverForeground,
+    color: theme.colors.palette.white,
   },
 }));

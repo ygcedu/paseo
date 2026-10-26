@@ -1,3 +1,4 @@
+import type { ToolWindowRegion } from "@/workspace-tabs/tool-windows/model";
 import invariant from "tiny-invariant";
 import type { JsonValue } from "@getpaseo/protocol/agent-types";
 import type { WorkspaceTab, WorkspaceTabTarget } from "@/workspace-tabs/model";
@@ -114,7 +115,7 @@ interface InsertSplitInternalResult {
  */
 export type WorkspaceTabPlacement =
   /** Pane-local affordance: new tabs open here, existing tabs move here. */
-  | { mode: "pane"; paneId: string }
+  | { mode: "pane"; paneId: string; toolWindowRegion?: ToolWindowRegion }
   /** Implicit open: new tabs open here, existing tabs stay where the user left them. */
   | { mode: "prefer"; paneId: string }
   /** The user is working in the focused pane, whichever one that is. */

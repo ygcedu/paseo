@@ -27,6 +27,7 @@ const WORKSPACE_KEY = "server-1:ws-main";
 beforeEach(() => {
   useWorkspaceLayoutStore.setState({
     layoutByWorkspace: {},
+    toolWindowsByWorkspace: {},
     explorerSidebarPaneIdByWorkspace: {},
     sidePaneIdByWorkspace: {},
     splitSizesByWorkspace: {},

@@ -632,6 +632,18 @@ export const fr: TranslationResources = {
       openAsTab: "Ouvrir dans un onglet",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "Afficher tous les terminaux",
+        add: "Ajouter un panneau",
+        configure: "Options du panneau",
+        minimize: "Réduire le panneau",
+        remove: "Retirer le panneau",
+        move: {
+          left: "Déplacer à gauche",
+          right: "Déplacer à droite",
+          bottom: "Déplacer en bas",
+        },
+      },
       loading: "Chargement…",
       modified: "Modifications non enregistrées",
       loadingAgentTitle: "Chargement du titre de l’agent…",

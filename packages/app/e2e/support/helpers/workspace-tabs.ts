@@ -72,11 +72,10 @@ async function selectWorkspaceTab(tab: Locator): Promise<void> {
 
 /** Reveal the Explorer sidebar without changing its selected view. */
 export async function ensureExplorerSidebar(page: Page): Promise<Locator> {
-  const toggle = page.getByTestId("workspace-explorer-toggle").first();
-  await expect(toggle).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("tool-window-rail-left")).toBeVisible({ timeout: 30_000 });
   const explorer = explorerSidebar(page);
   if ((await explorer.count()) === 0) {
-    await toggle.click();
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+e" : "Control+e");
   }
   await expect(explorer).toBeVisible({ timeout: 30_000 });
   return explorer;
@@ -87,9 +86,11 @@ async function openExplorerView(
   page: Page,
   view: { tabTestId: string; contentTestId: string; timeout?: number },
 ): Promise<void> {
-  const explorer = await ensureExplorerSidebar(page);
-  const tab = explorer.getByTestId(view.tabTestId);
-  await selectWorkspaceTab(tab);
+  await ensureExplorerSidebar(page);
+  const toolId = view.tabTestId.replace("workspace-tab-", "tool-window-icon-");
+  const icon = page.getByTestId(toolId).filter({ visible: true });
+  if ((await icon.getAttribute("aria-pressed")) !== "true") await icon.click();
+  await expect(icon).toHaveAttribute("aria-pressed", "true");
   await expect(visibleTestId(page, view.contentTestId).first()).toBeVisible({
     timeout: view.timeout ?? 30_000,
   });

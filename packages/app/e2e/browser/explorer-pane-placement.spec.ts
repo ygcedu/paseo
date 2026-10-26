@@ -25,9 +25,9 @@ function draftTabChip(page: Page): Locator {
   return page.locator('[data-testid^="workspace-tab-draft_"]').filter({ visible: true });
 }
 
-/** Scope the shared tab row to the Explorer dock. */
+/** Scope tools separately from ordinary workspace tabs. */
 function explorerTabRow(page: Page): Locator {
-  return visible(page, "workspace-explorer-sidebar").getByTestId("workspace-tabs-row");
+  return visible(page, "tool-window-rail-left");
 }
 
 function mainTabRow(page: Page): Locator {

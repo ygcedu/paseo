@@ -623,6 +623,18 @@ export const en = {
       openAsTab: "Open as tab",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "Show all terminals",
+        add: "Add panel",
+        configure: "Panel options",
+        minimize: "Minimize panel",
+        remove: "Remove panel",
+        move: {
+          left: "Move to left",
+          right: "Move to right",
+          bottom: "Move to bottom",
+        },
+      },
       loading: "Loading...",
       modified: "Unsaved changes",
       loadingAgentTitle: "Loading agent title",

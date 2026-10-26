@@ -626,6 +626,18 @@ export const zhCN: TranslationResources = {
       openAsTab: "作为标签页打开",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "查看所有终端",
+        add: "添加面板",
+        configure: "面板选项",
+        minimize: "最小化面板",
+        remove: "移除面板",
+        move: {
+          left: "移动到左上区域",
+          right: "移动到右上区域",
+          bottom: "移动到左下区域",
+        },
+      },
       loading: "正在加载...",
       modified: "未保存的更改",
       loadingAgentTitle: "正在加载 Agent 标题",

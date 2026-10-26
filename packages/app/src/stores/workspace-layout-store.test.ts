@@ -593,6 +593,7 @@ describe("workspace-layout-store version 2 migration", () => {
         "pullRequestTabAutoOpenedByWorkspace",
         "sidePaneIdByWorkspace",
         "splitSizesByWorkspace",
+        "toolWindowsByWorkspace",
       ]);
       expect(persisted.state.explorerPaneIdByWorkspace).toEqual({
         [workspaceKey]: "explorer",
@@ -1141,6 +1142,7 @@ describe("workspace-layout-store actions", () => {
       hiddenAgentIdsByWorkspace: {},
       focusRestorationByWorkspace: {},
       explorerSidebarPaneIdByWorkspace: {},
+      toolWindowsByWorkspace: {},
     });
   });
 
@@ -3183,6 +3185,7 @@ describe("workspace-layout-store actions", () => {
       pinnedAgentIdsByWorkspace: {},
       splitSizesByWorkspace: currentState.splitSizesByWorkspace,
       explorerSidebarWidthByWorkspace: currentState.explorerSidebarWidthByWorkspace,
+      toolWindowsByWorkspace: currentState.toolWindowsByWorkspace,
       explorerPaneIdByWorkspace: {},
       pullRequestTabAutoOpenedByWorkspace: currentState.pullRequestTabAutoOpenedByWorkspace,
       sidePaneIdByWorkspace: currentState.sidePaneIdByWorkspace,
@@ -3418,6 +3421,7 @@ describe("workspace-layout-store actions", () => {
       pinnedAgentIdsByWorkspace: {},
       splitSizesByWorkspace: {},
       explorerSidebarWidthByWorkspace: {},
+      toolWindowsByWorkspace: {},
       explorerPaneIdByWorkspace: {},
       sidePaneIdByWorkspace: {},
     });
@@ -5203,6 +5207,150 @@ describe("compact workspace sheet", () => {
     stop();
 
     expect(received).toEqual([[], ["child"], []]);
+  });
+});
+
+describe("tool window layout", () => {
+  it("keeps grouped terminal sessions accessible on compact layouts and cold restore", () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    const key = "server-1:compact-terminals";
+    const tab = store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "terminal", terminalId: "compact-terminal" },
+      intent: "new",
+    });
+    store.getState().consolidateTerminals(key);
+    const options = store.persist.getOptions();
+    if (!options.partialize || !options.merge) throw new Error("Missing layout persistence");
+    const saved = options.partialize(store.getState());
+    store.getState().setLayoutMode("compact");
+    const layout = store.getState().layoutByWorkspace[key];
+    expect(findPaneContainingTab(layout.root, tab!)?.id).toBe(layout.focusedPaneId);
+    const restored = options.merge(saved, store.getState());
+    const restoredLayout = restored.layoutByWorkspace[key];
+    expect(findPaneContainingTab(restoredLayout.root, tab!)?.id).toBe(restoredLayout.focusedPaneId);
+    store.getState().setLayoutMode("split-panes");
+    store.getState().consolidateTerminals(key);
+    expect(store.getState().toolWindowsByWorkspace[key].terminalTabIds).toEqual([tab]);
+  });
+
+  it("collects existing workspace terminals in one tool host while preserving sessions", () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    const key = "server-1:terminal-group";
+    const first = store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "terminal", terminalId: "first" },
+      intent: "new",
+    });
+    const second = store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "terminal", terminalId: "second" },
+      intent: "new",
+    });
+    store.getState().consolidateTerminals(key);
+    const layout = store.getState().layoutByWorkspace[key];
+    const explorer = store.getState().explorerSidebarPaneIdByWorkspace[key] ?? "explorer";
+    expect(findPaneContainingTab(layout.root, first!)?.id).toBe(explorer);
+    expect(findPaneContainingTab(layout.root, second!)?.id).toBe(explorer);
+    expect(
+      collectAllTabs(layout.root)
+        .filter((tab) => tab.target.kind === "terminal")
+        .map((tab) => tab.target),
+    ).toEqual([
+      { kind: "terminal", terminalId: "first" },
+      { kind: "terminal", terminalId: "second" },
+    ]);
+    expect(store.getState().toolWindowsByWorkspace[key].activeByRegion.bottom).toBe(second);
+    store.getState().moveToolWindow(key, { tabId: second!, region: "right", beforeTabId: null });
+    expect(store.getState().toolWindowsByWorkspace[key].regionByTabId[first!]).toBe("right");
+    expect(store.getState().toolWindowsByWorkspace[key].regionByTabId[second!]).toBe("right");
+    const movedLayout = store.getState().layoutByWorkspace[key];
+    store.getState().consolidateTerminals(key);
+    expect(store.getState().layoutByWorkspace[key]).toBe(movedLayout);
+  });
+
+  it("persists independent regions and minimization without removing or replacing tabs", () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    const key = "server-1:tool-windows";
+    store.getState().showExplorerSidebar(key);
+    store.getState().toggleToolWindow(key, "files");
+    store
+      .getState()
+      .moveToolWindow(key, { tabId: "changes_tree", region: "right", beforeTabId: null });
+    const layout = store.getState().layoutByWorkspace[key];
+    store.getState().resizeToolWindow(key, "right", 400);
+    store.getState().minimizeToolWindow(key, "left");
+    expect(store.getState().layoutByWorkspace[key]).toBe(layout);
+    expect(
+      findPaneById(layout.root, store.getState().explorerSidebarPaneIdByWorkspace[key])?.tabIds,
+    ).toEqual(["files", "changes_tree"]);
+    const options = store.persist.getOptions();
+    if (!options.partialize || !options.merge) throw new Error("Missing layout persistence");
+    const restored = options.merge(
+      options.partialize(store.getState()),
+      createWorkspaceLayoutStore(workspaceLayoutIds).getState(),
+    );
+    expect(restored.toolWindowsByWorkspace[key].activeByRegion).toEqual({
+      left: null,
+      right: "changes_tree",
+      bottom: null,
+    });
+    expect(restored.toolWindowsByWorkspace[key].sizes.right).toBe(400);
+    store.getState().hideExplorerSidebar(key);
+    store.getState().showExplorerSidebar(key);
+    expect(store.getState().toolWindowsByWorkspace[key].activeByRegion).toEqual({
+      left: null,
+      right: "changes_tree",
+      bottom: null,
+    });
+    store.getState().purgeWorkspace(key);
+    expect(store.getState().toolWindowsByWorkspace[key]).toBeUndefined();
+  });
+
+  it("adds panels to the requested region without changing the other regions", () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    const key = "server-1:add-tool";
+    store.getState().showExplorerSidebar(key);
+    store.getState().toggleToolWindow(key, "files");
+    const paneId = store.getState().prepareToolWindowLaunch(key);
+    if (!paneId) throw new Error("Missing tool window pane");
+    const tabId = store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "terminal", terminalId: "tool-term" },
+      intent: "new",
+      placement: { mode: "pane", paneId, toolWindowRegion: "bottom" },
+    });
+    expect(store.getState().toolWindowsByWorkspace[key].activeByRegion).toEqual({
+      left: "files",
+      right: null,
+      bottom: tabId,
+    });
+    store.getState().minimizeToolWindow(key, "bottom");
+    store.getState().focusTab(key, tabId!);
+    expect(store.getState().toolWindowsByWorkspace[key].activeByRegion.bottom).toBe(tabId);
+  });
+  it("keeps delayed creation in its requested region after another panel opens", () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    const key = "server-1:delayed-tool";
+    const paneId = store.getState().prepareToolWindowLaunch(key);
+    if (!paneId) throw new Error("Missing tool window pane");
+    const diff = store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "working_diff" },
+      intent: "new",
+      placement: { mode: "pane", paneId, toolWindowRegion: "right" },
+    });
+    const terminal = store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "terminal", terminalId: "delayed" },
+      intent: "new",
+      placement: { mode: "pane", paneId, toolWindowRegion: "bottom" },
+    });
+    expect(store.getState().toolWindowsByWorkspace[key].activeByRegion).toEqual({
+      left: null,
+      right: diff,
+      bottom: terminal,
+    });
   });
 });
 

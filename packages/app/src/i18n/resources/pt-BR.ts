@@ -631,6 +631,18 @@ export const ptBR: TranslationResources = {
       openAsTab: "Abrir como aba",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "Mostrar todos os terminais",
+        add: "Adicionar painel",
+        configure: "Opções do painel",
+        minimize: "Minimizar painel",
+        remove: "Remover painel",
+        move: {
+          left: "Mover para a esquerda",
+          right: "Mover para a direita",
+          bottom: "Mover para baixo",
+        },
+      },
       loading: "Carregando...",
       modified: "Alterações não salvas",
       loadingAgentTitle: "Carregando título do agente",

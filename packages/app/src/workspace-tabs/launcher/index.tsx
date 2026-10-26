@@ -1,3 +1,4 @@
+import type { ToolWindowRegion } from "@/workspace-tabs/tool-windows/model";
 import {
   createContext,
   useCallback,
@@ -10,6 +11,7 @@ import { useRouter, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Globe, SquarePen, SquareTerminal } from "lucide-react-native";
 import invariant from "tiny-invariant";
+import { isWeb } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { pluginIconComponent } from "@/plugins/icons";
@@ -34,7 +36,7 @@ import { getBuiltInLaunchOrder, type BuiltInLaunchItemId } from "./internal/cata
 export type WorkspaceTabLaunchPurpose = "primary" | "supporting";
 
 export type WorkspaceTabLaunchDestination =
-  | { kind: "open"; paneId?: string }
+  | { kind: "open"; paneId?: string; toolWindowRegion?: ToolWindowRegion }
   | { kind: "replace"; tabId: string };
 
 export interface NewTabLauncher {
@@ -42,6 +44,7 @@ export interface NewTabLauncher {
   showPullRequest: boolean;
   showBrowser: boolean;
   terminalDisabled: boolean;
+  terminalPanelExists: boolean;
   launch: (selection: NewTabSelection, destination: WorkspaceTabLaunchDestination) => void;
 }
 
@@ -53,6 +56,7 @@ export interface WorkspaceTabLaunchItem {
   shortcutActionId?: string;
   disabled: boolean;
   panelKind: WorkspaceTabTarget["kind"];
+  target?: WorkspaceTabTarget;
   launch: (destination: WorkspaceTabLaunchDestination) => void;
 }
 
@@ -99,8 +103,16 @@ export function useWorkspaceTabLaunchCatalog(input: {
   host: PaneHost;
   surface: "menu" | "panel";
   panePanelKinds?: readonly WorkspaceTabTarget["kind"][];
+  allowTerminalSessions?: boolean;
 }): readonly WorkspaceTabLaunchGroup[] {
-  const { serverId, purpose, host, surface, panePanelKinds = EMPTY_PANE_PANEL_KINDS } = input;
+  const {
+    serverId,
+    purpose,
+    host,
+    surface,
+    panePanelKinds = EMPTY_PANE_PANEL_KINDS,
+    allowTerminalSessions = false,
+  } = input;
   const { t } = useTranslation();
   const router = useRouter();
   const launcher = useContext(NewTabLauncherContext);
@@ -120,6 +132,9 @@ export function useWorkspaceTabLaunchCatalog(input: {
   }, [router, serverId]);
 
   return useMemo(() => {
+    const hideTerminals = launcher.terminalPanelExists && !allowTerminalSessions;
+    const isExplorerMenu = host === "explorer" && surface === "menu" && isWeb && !isCompact;
+
     const changesPresentation = getLaunchPresentation("changes_tree");
     const diffPresentation = getLaunchPresentation("working_diff");
     const filesPresentation = getLaunchPresentation("files");
@@ -140,6 +155,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: SquareTerminal,
         shortcutActionId: "workspace-terminal-new",
         disabled: launcher.terminalDisabled,
+        hidden: hideTerminals,
         panelKind: "terminal",
         launch: launchSelection(BUILT_IN_SELECTIONS.terminal),
       },
@@ -149,6 +165,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: changesPresentation.icon,
         disabled: false,
         panelKind: "changes_tree",
+        target: { kind: "changes_tree" },
         hidden: !launcher.showChanges,
         launch: launchSelection(BUILT_IN_SELECTIONS.changes),
       },
@@ -159,8 +176,9 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-tab-target-changes",
         disabled: false,
         panelKind: "working_diff",
-        // Compact Changes shows each file's diff inline, so a separate Diff panel is redundant.
+        target: { kind: "working_diff" },
         hidden: !launcher.showChanges || isCompact,
+
         launch: launchSelection(BUILT_IN_SELECTIONS.diff),
       },
       files: {
@@ -170,6 +188,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-tab-target-files",
         disabled: false,
         panelKind: "files",
+        target: { kind: "files" },
         launch: launchSelection(BUILT_IN_SELECTIONS.files),
       },
       browser: {
@@ -188,6 +207,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: pullRequestPresentation.icon,
         disabled: false,
         panelKind: "pull_request",
+        target: { kind: "pull_request" },
         hidden: !launcher.showPullRequest,
         launch: launchSelection(BUILT_IN_SELECTIONS.pullRequest),
       },
@@ -214,6 +234,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
           Icon: pluginIconComponent(panel.icon),
           disabled: false,
           panelKind: "plugin",
+          target: selection.target,
           launch: launchSelection(selection),
         });
       }
@@ -224,7 +245,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
     if (pluginItems.length > 0) {
       groups.push({ id: "plugin-panels", label: null, items: pluginItems });
     }
-    if (profiles.length > 0) {
+    if (!hideTerminals && !isExplorerMenu && profiles.length > 0) {
       groups.push({
         id: "terminal-profiles",
         label: t("workspace.tabs.actions.terminalProfilesMenu"),
@@ -251,6 +272,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
       return items.length > 0 ? [{ ...group, items }] : [];
     });
   }, [
+    allowTerminalSessions,
     config?.terminalProfiles,
     editTerminalProfiles,
     isCompact,

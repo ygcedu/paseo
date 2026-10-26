@@ -11,6 +11,7 @@ import type { LayoutChangeEvent } from "react-native";
 import { ExplorerSidebarDock } from "@/screens/workspace/explorer-sidebar";
 import { ExplorerFrame } from "./explorer-sidebar/frame";
 import { WorkspaceTabDragScope } from "@/components/workspace-tab-drag-scope";
+
 import {
   WorkspaceComposerEditingSessionsProvider,
   useComposerTabFullscreen,
@@ -150,13 +151,6 @@ import {
 } from "@/screens/workspace/workspace-desktop-tabs-row";
 import { useDesktopBrowserNewTabRequests } from "@/desktop/browser/new-tab-requests";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
-import {
-  resolveWorkspaceExplorerToggleOwner,
-  EXPLORER_TOGGLE_KEYS,
-  WorkspaceExplorerSidebarToggle,
-  WorkspaceHeaderExplorerToggle,
-} from "@/screens/workspace/workspace-explorer-toggle";
-import { useHasWindowChromeObstruction } from "@/utils/desktop-window";
 import {
   resolveWorkspaceHeaderRenderState,
   type WorkspaceHeaderCheckoutState,
@@ -896,6 +890,17 @@ function paneLocalPlacement(paneId: string | null | undefined): WorkspaceTabPlac
   return paneId ? { mode: "pane", paneId } : FOCUSED_PANE_PLACEMENT;
 }
 
+function launchPlacement(
+  destination: Extract<WorkspaceTabLaunchDestination, { kind: "open" }>,
+): WorkspaceTabPlacement {
+  if (!destination.paneId) return FOCUSED_PANE_PLACEMENT;
+  return {
+    mode: "pane",
+    paneId: destination.paneId,
+    toolWindowRegion: destination.toolWindowRegion,
+  };
+}
+
 interface WorkspaceTerminalTabActionsInput {
   persistenceKey: string | null;
   openWorkspaceTabFocused: (
@@ -936,6 +941,8 @@ function useWorkspaceTerminalTabActions({
   labels,
   toast,
 }: WorkspaceTerminalTabActionsInput): WorkspaceTerminalTabActions {
+  const isCompact = useIsCompactFormFactor();
+  const prepareToolWindowLaunch = useWorkspaceLayoutStore((state) => state.prepareToolWindowLaunch);
   const handleTerminalCreated = useCallback(
     ({ terminalId, destination }: { terminalId: string; destination: TerminalTabDestination }) => {
       if (!persistenceKey) {
@@ -948,26 +955,44 @@ function useWorkspaceTerminalTabActions({
         });
         return;
       }
+      const toolPaneId =
+        !isCompact && supportsDesktopPaneSplits() ? prepareToolWindowLaunch(persistenceKey) : null;
       openWorkspaceTabFocused(
         persistenceKey,
         { kind: "terminal", terminalId },
-        paneLocalPlacement(destination.paneId),
+        toolPaneId
+          ? {
+              mode: "pane",
+              paneId: toolPaneId,
+              toolWindowRegion: destination.toolWindowRegion ?? "bottom",
+            }
+          : launchPlacement(destination),
       );
     },
-    [openWorkspaceTabFocused, persistenceKey, replaceWorkspaceTabTarget],
+    [
+      isCompact,
+      openWorkspaceTabFocused,
+      persistenceKey,
+      prepareToolWindowLaunch,
+      replaceWorkspaceTabTarget,
+    ],
   );
   const handleScriptTerminalSelected = useCallback(
     (terminalId: string) => {
       if (!persistenceKey) {
         return;
       }
+      const toolPaneId =
+        !isCompact && supportsDesktopPaneSplits() ? prepareToolWindowLaunch(persistenceKey) : null;
       openWorkspaceTabFocused(
         persistenceKey,
         { kind: "terminal", terminalId },
-        FOCUSED_PANE_PLACEMENT,
+        toolPaneId
+          ? { mode: "pane", paneId: toolPaneId, toolWindowRegion: "bottom" }
+          : FOCUSED_PANE_PLACEMENT,
       );
     },
-    [openWorkspaceTabFocused, persistenceKey],
+    [isCompact, openWorkspaceTabFocused, persistenceKey, prepareToolWindowLaunch],
   );
   const handleWorkspacePathUnavailable = useCallback(() => {
     toast.error(labels.workspacePathUnavailable);
@@ -1030,13 +1055,7 @@ function WorkspaceScreenContent({
   const _insets = useSafeAreaInsets();
   const toast = useToast();
   const isMobile = useIsCompactFormFactor();
-  const canRenderDesktopPaneSplits = supportsDesktopPaneSplits();
-  const layoutMode = useWorkspaceLayoutStore((state) => state.layoutMode);
-  const hasMacTrafficLights = useHasWindowChromeObstruction("top-left");
-  const explorerToggleOwner = resolveWorkspaceExplorerToggleOwner({
-    isMobile,
-    hasMacTrafficLights,
-  });
+
   const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
   const toggleFocusMode = usePanelStore((state) => state.toggleFocusMode);
 
@@ -1264,6 +1283,8 @@ function WorkspaceScreenContent({
   });
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
 
+  const layoutMode = useWorkspaceLayoutStore((state) => state.layoutMode);
+  const canRenderDesktopPaneSplits = layoutMode === "split-panes";
   const isExplorerSidebarShowing = useIsExplorerSidebarOpen({
     isCompact: isMobile,
     workspaceKey: persistenceKey,
@@ -1329,6 +1350,13 @@ function WorkspaceScreenContent({
     () => (workspaceLayout ? collectAllTabs(workspaceLayout.root) : EMPTY_UI_TABS),
     [workspaceLayout],
   );
+  const terminalPanelExists = useMemo(
+    () =>
+      !isMobile &&
+      supportsDesktopPaneSplits() &&
+      uiTabs.some((tab) => tab.target.kind === "terminal"),
+    [isMobile, uiTabs],
+  );
   useOpenAgentTabLabels({
     client,
     serverId: normalizedServerId,
@@ -1347,7 +1375,9 @@ function WorkspaceScreenContent({
   );
   const openInSidePane = useSettings((settings) => settings.openInSidePane);
   const pullRequestOpenLocation = useSettings((settings) => settings.pullRequestOpenLocation);
+
   const selectWorkspaceTabInPane = useWorkspaceLayoutStore((state) => state.selectTabInPane);
+
   const closeWorkspaceTab = useWorkspaceLayoutStore((state) => state.closeTab);
   const sheets = useWorkspaceLayoutStore((state) =>
     persistenceKey ? (state.sheetsByWorkspace[persistenceKey] ?? NO_SHEETS) : NO_SHEETS,
@@ -1801,7 +1831,14 @@ function WorkspaceScreenContent({
     [openWorkspaceDraftTab],
   );
 
+  const revealExistingTerminal = useCallback(() => {
+    const target = uiTabs.find((tab) => tab.target.kind === "terminal")?.target;
+    if (target?.kind !== "terminal") return false;
+    handleViewScriptTerminal(target.terminalId);
+    return true;
+  }, [uiTabs, handleViewScriptTerminal]);
   const handleCreateTerminal = useStableEvent((input?: { paneId?: string }) => {
+    if (terminalPanelExists && revealExistingTerminal()) return;
     createTerminal({
       destination: input?.paneId ? { kind: "open", paneId: input.paneId } : { kind: "open" },
     });
@@ -1848,7 +1885,7 @@ function WorkspaceScreenContent({
         if (destination.kind === "replace") {
           replaceWorkspaceTabTarget(persistenceKey, destination.tabId, target);
         } else {
-          createWorkspaceTab(persistenceKey, target, paneLocalPlacement(destination.paneId));
+          createWorkspaceTab(persistenceKey, target, launchPlacement(destination));
         }
       };
       if (selection.kind === "target") {
@@ -1863,6 +1900,9 @@ function WorkspaceScreenContent({
         return;
       }
       if (selection.kind === "terminal") {
+        const createsInPanel =
+          destination.kind === "open" && destination.paneId === explorerSidebarPaneId;
+        if (terminalPanelExists && !createsInPanel && revealExistingTerminal()) return;
         createTerminal({
           profile: selection.profile,
           destination,
@@ -1872,7 +1912,15 @@ function WorkspaceScreenContent({
       const { browserId } = createWorkspaceBrowser();
       openTarget({ kind: "browser", browserId });
     },
-    [createTerminal, createWorkspaceTab, persistenceKey, replaceWorkspaceTabTarget],
+    [
+      createTerminal,
+      createWorkspaceTab,
+      persistenceKey,
+      replaceWorkspaceTabTarget,
+      terminalPanelExists,
+      explorerSidebarPaneId,
+      revealExistingTerminal,
+    ],
   );
 
   const handleOpenUrlInBrowserTab = useCallback(
@@ -3223,18 +3271,7 @@ function WorkspaceScreenContent({
           />
         ) : null}
         {workspaceDirectory ? (
-          <>
-            <WorkspaceActions serverId={normalizedServerId} cwd={workspaceDirectory} />
-            <WorkspaceHeaderExplorerToggle
-              owner={explorerToggleOwner}
-              onPress={handleToggleExplorerSidebar}
-              label={explorerSidebarToggleLabel}
-              tooltipLabel={t("workspace.tabs.explorerSidebar.toggle")}
-              tooltipKeys={EXPLORER_TOGGLE_KEYS}
-              style={styles.compactHeaderActionButton}
-              accessibilityState={explorerSidebarToggleAccessibilityState}
-            />
-          </>
+          <WorkspaceActions serverId={normalizedServerId} cwd={workspaceDirectory} />
         ) : null}
       </View>
     ),
@@ -3248,36 +3285,12 @@ function WorkspaceScreenContent({
       handleScriptTerminalStarted,
       handleViewScriptTerminal,
       handleOpenUrlInBrowserTab,
-      handleToggleExplorerSidebar,
-      explorerSidebarToggleLabel,
-      explorerSidebarToggleAccessibilityState,
-      explorerToggleOwner,
-      t,
     ],
   );
 
   const showScreenHeader = useMemo(
     () => shouldShowWorkspaceScreenHeader({ isFocusModeEnabled, isMobile }),
     [isFocusModeEnabled, isMobile],
-  );
-  const renderExplorerSidebarHeaderAction = useCallback(
-    () => (
-      <WorkspaceExplorerSidebarToggle
-        owner={explorerToggleOwner}
-        onPress={handleToggleExplorerSidebar}
-        label={explorerSidebarToggleLabel}
-        tooltipLabel={t("workspace.tabs.explorerSidebar.toggle")}
-        tooltipKeys={EXPLORER_TOGGLE_KEYS}
-        accessibilityState={explorerSidebarToggleAccessibilityState}
-      />
-    ),
-    [
-      explorerSidebarToggleAccessibilityState,
-      explorerSidebarToggleLabel,
-      explorerToggleOwner,
-      handleToggleExplorerSidebar,
-      t,
-    ],
   );
   const createTerminalDisabled = useMemo(
     () => createTerminalMutation.isPending || pendingTerminalCreateInput !== null,
@@ -3290,9 +3303,11 @@ function WorkspaceScreenContent({
       showPullRequest: hasPullRequest,
       showBrowser: showCreateBrowserTab,
       terminalDisabled: createTerminalDisabled,
+      terminalPanelExists,
       launch: launchWorkspaceTab,
     }),
     [
+      terminalPanelExists,
       createTerminalDisabled,
       hasPullRequest,
       isGitCheckout,
@@ -3505,7 +3520,6 @@ function WorkspaceScreenContent({
         onSplitPane={handleSplitPane}
         onSplitPaneEmpty={handleCreateEmptySplit}
         onMoveTabToPane={handleMoveTabToPane}
-        onSelectTabInPane={selectTabInPane}
         onResizeSplit={handleResizePaneSplit}
         onReorderTabsInPane={handleReorderTabsInPane}
       />
@@ -3540,7 +3554,6 @@ function WorkspaceScreenContent({
     handleSplitPane,
     handleCreateEmptySplit,
     handleMoveTabToPane,
-    selectTabInPane,
     handleResizePaneSplit,
     handleReorderTabsInPane,
   ]);
@@ -3617,6 +3630,7 @@ function WorkspaceScreenContent({
     [],
   );
   const sharedExplorer = useMemo(() => {
+    if (canRenderDesktopPaneSplits) return null;
     if (!workspaceLayout || !explorerSidebarPaneId || !persistenceKey) return null;
     const explorerPane = findPaneById(workspaceLayout.root, explorerSidebarPaneId);
     if (!explorerPane) return null;
@@ -3645,7 +3659,6 @@ function WorkspaceScreenContent({
         onExitFocusMode={toggleFocusMode}
         onReorderTabsInPane={handleReorderTabsInPane}
         buildPaneContentModel={buildDesktopPaneContentModel}
-        headerAction={renderExplorerSidebarHeaderAction()}
       />
     );
     return (
@@ -3686,8 +3699,9 @@ function WorkspaceScreenContent({
     toggleFocusMode,
     handleReorderTabsInPane,
     buildDesktopPaneContentModel,
-    renderExplorerSidebarHeaderAction,
+
     workspaceViewportWidth,
+    canRenderDesktopPaneSplits,
     desktopFocusModeEnabled,
   ]);
 

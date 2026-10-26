@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { RetainedPanel } from "@/components/retained-panel";
 import { useModifiedPanelTabIds } from "@/panels/panel-instance-attributes";
 import {
@@ -14,6 +14,9 @@ interface WorkspacePanelHostProps {
   paneId: string;
   tabs: WorkspaceTabDescriptor[];
   activeTabId: string | null;
+  visibleTabIds?: ReadonlySet<string>;
+  retentionLimit?: number;
+  renderPanel?: (tab: WorkspaceTabDescriptor, content: ReactNode) => ReactNode;
   normalizedServerId: string;
   normalizedWorkspaceId: string;
   isWorkspaceFocused: boolean;
@@ -93,6 +96,9 @@ export function WorkspacePanelHost({
   paneId,
   tabs,
   activeTabId,
+  visibleTabIds,
+  retentionLimit = 3,
+  renderPanel,
   normalizedServerId,
   normalizedWorkspaceId,
   isWorkspaceFocused,
@@ -106,12 +112,16 @@ export function WorkspacePanelHost({
     workspaceId: normalizedWorkspaceId,
     tabIds,
   });
+  const retainedAndVisibleTabIds = useMemo(
+    () => new Set([...retainedTabIds, ...(visibleTabIds ?? [])]),
+    [retainedTabIds, visibleTabIds],
+  );
   const stableTabs = useStableTabs(tabs);
   const { mountedTabIds } = useMountedTabSet({
     activeTabId,
     allTabIds: tabIds,
-    retainedTabIds,
-    cap: 3,
+    retainedTabIds: retainedAndVisibleTabIds,
+    cap: retentionLimit,
   });
   const mountedIds = useMemo(
     () => tabIds.filter((tabId) => mountedTabIds.has(tabId)),
@@ -121,18 +131,19 @@ export function WorkspacePanelHost({
   return mountedIds.map((tabId) => {
     const tab = stableTabs.get(tabId);
     if (!tab) return null;
-    const visible = tabId === activeTabId;
-    return (
+    const visible = visibleTabIds ? visibleTabIds.has(tabId) : tabId === activeTabId;
+    const content = (
       <MountedTab
         key={tabId}
         tab={tab}
         paneId={paneId}
         visible={visible}
-        interactive={isPaneFocused && visible}
+        interactive={isPaneFocused && visible && (!visibleTabIds || tabId === activeTabId)}
         isWorkspaceFocused={isWorkspaceFocused}
         onFocusPane={onFocusPane}
         buildPaneContentModel={buildPaneContentModel}
       />
     );
+    return renderPanel ? renderPanel(tab, content) : content;
   });
 }

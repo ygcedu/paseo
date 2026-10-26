@@ -1,13 +1,14 @@
 # Explorer sidebar and side pane
 
-The Explorer sidebar and the side pane share panel implementations, but they have different shell
-contracts.
+Tool windows, the native Explorer sidebar, and ordinary workspace panes share panel implementations.
+Each shell owns its placement and visibility.
 
-| Surface          | Purpose                      | Lifecycle                                  |
-| ---------------- | ---------------------------- | ------------------------------------------ |
-| Explorer sidebar | Files and Changes navigation | Cmd+E shows or hides the dedicated dock    |
-| Side pane        | Ordinary workspace content   | Created and closed like any workspace pane |
-| Sheets           | Compact look-ups             | One tab each, on the app-wide sheet stack  |
+| Surface          | Purpose                    | Lifecycle                                  |
+| ---------------- | -------------------------- | ------------------------------------------ |
+| Tool windows     | Configured desktop panels  | Icon rails reveal independent regions      |
+| Explorer sidebar | Native Files and Changes   | Compact overlay or wide native dock        |
+| Side pane        | Ordinary workspace content | Created and closed like any workspace pane |
+| Sheets           | Compact look-ups           | One tab each, on the app-wide sheet stack  |
 
 ## Panel host contract
 
@@ -18,7 +19,7 @@ a compatible pane.
 
 Files and Changes are the Explorer defaults. Their panel manifests mark them as singletons,
 so a pane’s + menu omits each while that pane already contains it. Closing one makes its menu
-item available again. Other compatible tabs, including agents, terminals, files, and diffs,
+item available again. Other compatible tabs, including agents, files, and diffs,
 can move between Explorer and main panes.
 Keep panel implementations independent of either shell. `WorkspacePanelHost` owns mounting and
 retention. The shared Explorer owns its tab rail; its shared frame owns visibility, activity and
@@ -70,16 +71,48 @@ Moving its tab to another host remounts the panel, and the file editor keeps uns
 mounted view, so the move would drop it. Widening the layout is the known exception: it still moves
 the sheet's tab into a pane, and edits the autosave has not started writing are lost.
 
-## Explorer sidebar
+## Desktop tool windows
 
-`packages/app/src/workspace-tabs/explorer-sidebar.ts` owns show, hide, toggle, and view selection.
-One Explorer host stays beside the center column across compact overlays and docks. Keep its
-providers and gesture roots at the same React position when width or appearance changes. The
-workspace route preserves panel ancestry during appearance updates. Appearance-dependent leaves
-subscribe to theme changes; the file editor reconfigures its existing editor theme compartment.
-Ordinary leaf routes retain the stack appearance policy.
-The shell is outside the workspace split canvas so it divides the full workspace, including the header. It has its own persisted width and resize handle. Main-pane splits
-never read or modify that width.
+The desktop workspace has three independent tool regions. The upper left rail selects the left
+region; the lower left rail selects the bottom region; the right rail selects the right region.
+The left rail sits inside the workspace, beside the Workspaces navigation. Every region can retain
+several configured panels, with one selected panel visible at a time. Regions can stay open together.
+Rail icons use blue for the focused tool, neutral highlights for other visible tools, and no fill for
+minimized tools. Focusing the workspace canvas clears the blue highlight. Hover reveals the panel name.
+
+Use each rail's + menu to add compatible panels. Drag an icon or panel title onto another rail to
+move it, or onto an icon to insert before it. The panel's options menu offers the same moves and
+Remove panel. The minus action minimizes its region without closing the tab or removing its icon.
+Cmd+E hides or restores the tool regions together.
+
+Keep tool content under one `WorkspacePanelHost`. Region changes move frame coordinates, never
+React parents: terminals, editor drafts, and plugin local state must survive dragging and minimizing.
+Only the most recently focused tool receives pane keyboard ownership. The host retains visited
+tools while their tabs exist; hidden tools receive the shared inactive signal to stop background work.
+
+`workspace-tabs/tool-windows/model.ts` owns region assignments, order, selection, and restore policy.
+`screens/workspace/tool-windows/` owns rails, headers, drop targets, and frame layout. The layout
+store persists each workspace's region selections and sizes. Temporary window-size clamps preserve
+room for the conversation without overwriting saved sizes. The workspace header spans all three
+regions and owns the window-control corners.
+
+Plugin panels retain their declared Explorer location contract in every tool region. The + menu
+omits fixed-target panels already configured in any region, including minimized panels.
+Terminals share one tool window per workspace, with one rail icon and a session tab strip in its
+header. New terminals and script terminals join that window. The + after the final session tab appears
+on hover or keyboard focus and creates a session; touch layouts keep it visible. When tabs overflow,
+the + stays visible beside the overflow menu. Session close buttons appear on tab hover or keyboard
+focus and stay visible on touch layouts. Once the window
+exists, external launchers omit terminal entries and the New terminal shortcut reveals the window. New shell sessions use Local, Local(2), and so on;
+right-click a session tab to rename it. The client keeps these user-owned labels across reloads;
+shell OSC titles must not replace them. When the strip overflows, its right-hand menu lists every
+session and selecting one scrolls its tab into view. Closing a session stops only that terminal. Minimizing or moving
+the window preserves every session and its mounted terminal surface. Restored terminal tabs from
+ordinary panes are collected into the same window. On compact and wide native layouts, terminals
+remain ordinary workspace tabs.
+
+Files and Changes start in the left rail; the Terminal window starts in the bottom rail. Ordinary workspace tabs can move into a tool
+region when their panel supports the Explorer host.
 
 `packages/app/src/workspace-tabs/open-supporting-view.ts` owns semantic Changes and pull-request
 opens. Compact and wide native layouts select the matching workspace tab in Explorer. Desktop Changes opens
@@ -91,9 +124,13 @@ Callers request the content and never choose the shell.
 The composer Changes pill is a two-stage desktop action: it first reveals Explorer on Changes, then
 routes later presses to the working diff through the shared diff preference.
 
-The persisted layout still contains the Explorer pane so tabs survive reloads. The renderer removes
-that pane from the workspace split tree and docks it separately. Persisted identifiers retain the
-literal `"explorer"` pane id and `explorerPaneIdByWorkspace` key for compatibility.
+The persisted layout retains one Explorer pane as the tool tab registry. The desktop renderer
+removes it from the workspace split tree; its tabs render in the three independent tool frames.
+Persisted identifiers retain the literal `"explorer"` pane id and `explorerPaneIdByWorkspace` key.
+Region placement never changes those tab ids. Tool selection leaves the ordinary workspace's
+focused pane unchanged.
+
+## Compact and native Explorer sidebar
 
 Explorer uses the shared workspace tab row and ordinary tab context menus. Files and Changes
 hide their close buttons through the panel manifest; close them from the tab context menu.

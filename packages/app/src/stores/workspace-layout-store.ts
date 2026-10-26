@@ -1,3 +1,12 @@
+import {
+  resolveToolWindows,
+  revealToolWindow,
+  toggleToolWindow,
+  minimizeToolWindow,
+  moveToolWindow,
+  type ToolWindows,
+  type ToolWindowRegion,
+} from "@/workspace-tabs/tool-windows/model";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { create } from "zustand";
@@ -142,6 +151,7 @@ interface WorkspaceLayoutStore {
    */
   sheetsByWorkspace: Record<string, readonly SheetTab[]>;
   layoutByWorkspace: Record<string, WorkspaceLayout>;
+  toolWindowsByWorkspace: Record<string, ToolWindows>;
   splitSizesByWorkspace: Record<string, Record<string, number[]>>;
   explorerSidebarWidthByWorkspace: Record<string, number>;
   pinnedAgentIdsByWorkspace: Record<string, Set<string>>;
@@ -171,6 +181,15 @@ interface WorkspaceLayoutStore {
   ensureExplorerSidebar: (workspaceKey: string) => string | null;
   showExplorerSidebar: (workspaceKey: string) => string | null;
   hideExplorerSidebar: (workspaceKey: string) => void;
+  consolidateTerminals: (workspaceKey: string) => void;
+  toggleToolWindow: (workspaceKey: string, tabId: string) => void;
+  minimizeToolWindow: (workspaceKey: string, region: ToolWindowRegion) => void;
+  moveToolWindow: (
+    workspaceKey: string,
+    input: { tabId: string; region: ToolWindowRegion; beforeTabId: string | null },
+  ) => void;
+  prepareToolWindowLaunch: (workspaceKey: string) => string | null;
+  resizeToolWindow: (workspaceKey: string, region: ToolWindowRegion, size: number) => void;
   /** Returns the ordinary right-side workspace pane, creating it when absent. */
   ensureSidePane: (workspaceKey: string, options?: { focus: boolean }) => string | null;
   closeTab: (workspaceKey: string, tabId: string) => void;
@@ -483,6 +502,36 @@ function getWorkspaceLayout(
   return normalizeLayout(state[workspaceKey] ?? createWorkspaceLayoutWithExplorerSidebar());
 }
 
+function restoreToolTerminalsToMain(
+  layout: WorkspaceLayout,
+  explorerPaneId: string | null,
+): WorkspaceLayout {
+  const explorer = findPaneById(layout.root, explorerPaneId);
+  if (!explorer) return layout;
+  const focusedPane = findPaneById(layout.root, layout.focusedPaneId);
+  const focusedMain = focusedPane?.id === explorer.id ? null : focusedPane;
+  const main = focusedMain ?? collectAllPanes(layout.root).find((pane) => pane.id !== explorer.id);
+  if (!main) return layout;
+  const terminals = collectAllTabs(layout.root).filter(
+    (tab) => tab.target.kind === "terminal" && explorer.tabIds.includes(tab.tabId),
+  );
+  let next = layout;
+  for (const tab of terminals) {
+    next =
+      moveTabToPaneInLayout({
+        layout: next,
+        tabId: tab.tabId,
+        toPaneId: main.id,
+        explorerSidebarPaneId: explorer.id,
+      }) ?? next;
+  }
+  if (next === layout) return layout;
+  if (main.focusedTabId)
+    next =
+      selectTabInPaneInLayout({ layout: next, paneId: main.id, tabId: main.focusedTabId }) ?? next;
+  return { ...next, focusedPaneId: main.id };
+}
+
 function keepWorkspaceFocusOutOfExplorerSidebar(
   layout: WorkspaceLayout,
   explorerSidebarPaneId: string | null,
@@ -543,6 +592,56 @@ export function selectSheetTab(
   });
 }
 
+export function getWorkspaceToolWindows(
+  state: Pick<
+    WorkspaceLayoutStore,
+    "layoutByWorkspace" | "explorerSidebarPaneIdByWorkspace" | "toolWindowsByWorkspace"
+  >,
+  workspaceKey: string,
+  layout = getWorkspaceLayout(state.layoutByWorkspace, workspaceKey),
+): ToolWindows {
+  const paneId = resolveExplorerSidebarPaneId(
+    layout,
+    state.explorerSidebarPaneIdByWorkspace[workspaceKey],
+  );
+  const pane = findPaneById(layout.root, paneId);
+  const tabs = collectAllTabs(layout.root).filter((tab) => pane?.tabIds.includes(tab.tabId));
+  return resolveToolWindows({
+    saved: state.toolWindowsByWorkspace[workspaceKey],
+    tabs,
+    focusedTabId: pane?.focusedTabId ?? null,
+    hidden: pane?.hidden === true,
+  });
+}
+
+interface RevealToolWindowInput {
+  state: WorkspaceLayoutStore;
+  workspaceKey: string;
+  layout: WorkspaceLayout;
+  tabId: string;
+  region?: ToolWindowRegion;
+}
+function revealWorkspaceToolWindow({
+  state,
+  workspaceKey,
+  layout,
+  tabId,
+  region,
+}: RevealToolWindowInput): Record<string, ToolWindows> {
+  if (state.layoutMode !== "split-panes") return state.toolWindowsByWorkspace;
+  const paneId = resolveExplorerSidebarPaneId(
+    layout,
+    state.explorerSidebarPaneIdByWorkspace[workspaceKey],
+  );
+  if (findPaneContainingTab(layout.root, tabId)?.id !== paneId) return state.toolWindowsByWorkspace;
+  let tools = getWorkspaceToolWindows(state, workspaceKey, layout);
+  const existingTerminal = tools.terminalTabIds?.find((id) => id !== tabId);
+  const joinsTerminalGroup = tools.terminalTabIds?.includes(tabId) && existingTerminal;
+  if (region && !joinsTerminalGroup)
+    tools = { ...tools, regionByTabId: { ...tools.regionByTabId, [tabId]: region } };
+  return { ...state.toolWindowsByWorkspace, [workspaceKey]: revealToolWindow(tools, tabId) };
+}
+
 /** A workspace's panes give up keyboard focus while focus is parked or the sheet covers them. */
 export function selectPaneFocusSuspended(
   state: Pick<WorkspaceLayoutStore, "focusRestorationByWorkspace" | "sheetsByWorkspace">,
@@ -556,13 +655,19 @@ export function selectPaneFocusSuspended(
 
 /** Whether the Explorer sidebar pane is currently on screen. */
 export function selectIsExplorerSidebarVisible(
-  state: ExplorerSidebarState,
+  state: ExplorerSidebarState & Pick<WorkspaceLayoutStore, "toolWindowsByWorkspace" | "layoutMode">,
   workspaceKey: string,
 ): boolean {
   const layout = state.layoutByWorkspace[workspaceKey];
   const paneId = layout ? selectExplorerSidebarPaneId(state, workspaceKey) : null;
   const pane = paneId && layout ? findPaneById(layout.root, paneId) : null;
-  return Boolean(pane && pane.hidden !== true);
+  if (!pane || pane.hidden === true) return false;
+  const tools = state.toolWindowsByWorkspace[workspaceKey];
+  if (state.layoutMode === "split-panes" && tools)
+    return Object.values(tools.activeByRegion).some(
+      (tabId) => tabId !== null && pane.tabIds.includes(tabId),
+    );
+  return true;
 }
 
 export function resolveExplorerSidebarPaneId(
@@ -971,6 +1076,7 @@ function createExplorerSidebarPane(
 }
 
 const PERSISTED_SLICES = [
+  "toolWindowsByWorkspace",
   "layoutByWorkspace",
   "pinnedAgentIdsByWorkspace",
   "splitSizesByWorkspace",
@@ -1000,6 +1106,7 @@ function createPersistedStateProjection() {
       );
     }
     const state: WorkspaceLayoutPersistedState = {
+      toolWindowsByWorkspace: source.toolWindowsByWorkspace,
       layoutByWorkspace,
       pinnedAgentIdsByWorkspace: Object.fromEntries(
         Object.entries(source.pinnedAgentIdsByWorkspace).map(([key, agentIds]) => [
@@ -1084,6 +1191,7 @@ export function createWorkspaceLayoutStore(
         layoutMode: "split-panes",
         sheetsByWorkspace: {},
         layoutByWorkspace: {},
+        toolWindowsByWorkspace: {},
         splitSizesByWorkspace: {},
         explorerSidebarWidthByWorkspace: {},
         pinnedAgentIdsByWorkspace: {},
@@ -1208,6 +1316,19 @@ export function createWorkspaceLayoutStore(
                     normalizedWorkspaceKey,
                     normalizedTarget.agentId,
                   ),
+            toolWindowsByWorkspace:
+              input.intent === "background"
+                ? state.toolWindowsByWorkspace
+                : revealWorkspaceToolWindow({
+                    state,
+                    workspaceKey: normalizedWorkspaceKey,
+                    layout: nextLayout,
+                    tabId: result.tabId,
+                    region:
+                      input.placement?.mode === "pane"
+                        ? input.placement.toolWindowRegion
+                        : undefined,
+                  }),
             pinnedAgentIdsByWorkspace: shouldPinAgent
               ? addAgentIdToWorkspaceSet(
                   state.pinnedAgentIdsByWorkspace,
@@ -1231,9 +1352,18 @@ export function createWorkspaceLayoutStore(
         setLayoutMode: (mode) => {
           set((state) => {
             if (state.layoutMode === mode) return state;
-            if (mode === "compact") return { layoutMode: mode };
-            // Widening keeps whatever the user had open in sheets as ordinary tabs.
             const next: WorkspaceLayoutStore = { ...state, layoutMode: mode };
+            if (mode !== "split-panes") {
+              next.layoutByWorkspace = { ...state.layoutByWorkspace };
+              for (const [key, layout] of Object.entries(state.layoutByWorkspace)) {
+                next.layoutByWorkspace[key] = restoreToolTerminalsToMain(
+                  layout,
+                  selectExplorerSidebarPaneId(state, key),
+                );
+              }
+            }
+            if (mode === "compact") return next;
+            // Widening keeps whatever the user had open in sheets as ordinary tabs.
             for (const [workspaceKey, sheets] of Object.entries(state.sheetsByWorkspace)) {
               for (const sheet of sheets) {
                 const promoted = promoteSheetToTab(next, workspaceKey, sheet);
@@ -1275,7 +1405,20 @@ export function createWorkspaceLayoutStore(
               state.layoutByWorkspace,
               normalizedWorkspaceKey,
             );
+            const revealedLayout =
+              setPaneHiddenInLayout({ layout: currentLayout, paneId, hidden: false }) ??
+              currentLayout;
+            const tools = getWorkspaceToolWindows(state, normalizedWorkspaceKey, revealedLayout);
+            const focusedTabId = findPaneById(revealedLayout.root, paneId)?.focusedTabId;
+            const hasOpenTool = Object.values(tools.activeByRegion).some((tabId) => tabId !== null);
+            const revealFocused = !hasOpenTool && focusedTabId;
+            const nextTools = revealFocused ? revealToolWindow(tools, focusedTabId) : tools;
+
             return {
+              toolWindowsByWorkspace: {
+                ...state.toolWindowsByWorkspace,
+                [normalizedWorkspaceKey]: nextTools,
+              },
               layoutByWorkspace: {
                 ...state.layoutByWorkspace,
                 [normalizedWorkspaceKey]: keepWorkspaceFocusOutOfExplorerSidebar(
@@ -1323,10 +1466,146 @@ export function createWorkspaceLayoutStore(
               return state;
             }
 
+            const tools = getWorkspaceToolWindows(state, normalizedWorkspaceKey);
             return {
+              toolWindowsByWorkspace: {
+                ...state.toolWindowsByWorkspace,
+                [normalizedWorkspaceKey]: tools,
+              },
               layoutByWorkspace: {
                 ...state.layoutByWorkspace,
                 [normalizedWorkspaceKey]: nextLayout,
+              },
+            };
+          });
+        },
+        consolidateTerminals: (workspaceKey) => {
+          set((state) => {
+            if (state.layoutMode !== "split-panes") return state;
+            const layout = getWorkspaceLayout(state.layoutByWorkspace, workspaceKey);
+            const paneId = resolveExplorerSidebarPaneId(
+              layout,
+              state.explorerSidebarPaneIdByWorkspace[workspaceKey],
+            );
+            const pane = findPaneById(layout.root, paneId);
+            if (!pane) return state;
+            const terminals = collectAllTabs(layout.root).filter(
+              (tab) => tab.target.kind === "terminal",
+            );
+            const outside = terminals.filter((tab) => !pane.tabIds.includes(tab.tabId));
+            if (outside.length === 0) return state;
+            const focused = findPaneById(layout.root, layout.focusedPaneId)?.focusedTabId;
+            const focusedTerminal = terminals.find((tab) => tab.tabId === focused);
+            let next = setPaneHiddenInLayout({ layout, paneId: pane.id, hidden: false }) ?? layout;
+            for (const tab of outside) {
+              next =
+                moveTabToPaneInLayout({
+                  layout: next,
+                  tabId: tab.tabId,
+                  toPaneId: pane.id,
+                  explorerSidebarPaneId: pane.id,
+                }) ?? next;
+            }
+            const selected = focusedTerminal?.tabId ?? pane.focusedTabId;
+            if (selected)
+              next =
+                selectTabInPaneInLayout({ layout: next, paneId: pane.id, tabId: selected }) ?? next;
+            if (pane.hidden && !focusedTerminal)
+              next = setPaneHiddenInLayout({ layout: next, paneId: pane.id, hidden: true }) ?? next;
+            next = keepWorkspaceFocusOutOfExplorerSidebar(next, pane.id, layout.focusedPaneId);
+            let tools = getWorkspaceToolWindows(state, workspaceKey, next);
+            if (focusedTerminal) tools = revealToolWindow(tools, focusedTerminal.tabId);
+            return {
+              layoutByWorkspace: { ...state.layoutByWorkspace, [workspaceKey]: next },
+              toolWindowsByWorkspace: { ...state.toolWindowsByWorkspace, [workspaceKey]: tools },
+            };
+          });
+        },
+        toggleToolWindow: (workspaceKey, tabId) => {
+          const state = get();
+          const tools = getWorkspaceToolWindows(state, workspaceKey);
+          if (!tools.regionByTabId[tabId]) return;
+          const paneId = selectExplorerSidebarPaneId(state, workspaceKey);
+          const layout = getWorkspaceLayout(state.layoutByWorkspace, workspaceKey);
+          const unhidden = paneId
+            ? (setPaneHiddenInLayout({ layout, paneId, hidden: false }) ?? layout)
+            : layout;
+          const revealed = paneId
+            ? (selectTabInPaneInLayout({ layout: unhidden, paneId, tabId }) ?? unhidden)
+            : unhidden;
+          set({
+            toolWindowsByWorkspace: {
+              ...state.toolWindowsByWorkspace,
+              [workspaceKey]: toggleToolWindow(tools, tabId),
+            },
+            layoutByWorkspace: { ...state.layoutByWorkspace, [workspaceKey]: revealed },
+          });
+        },
+        minimizeToolWindow: (workspaceKey, region) => {
+          set((state) => ({
+            toolWindowsByWorkspace: {
+              ...state.toolWindowsByWorkspace,
+              [workspaceKey]: minimizeToolWindow(
+                getWorkspaceToolWindows(state, workspaceKey),
+                region,
+              ),
+            },
+          }));
+        },
+        moveToolWindow: (workspaceKey, input) => {
+          const state = get();
+          const paneId = selectExplorerSidebarPaneId(state, workspaceKey);
+          if (!paneId) return;
+          const layout = getWorkspaceLayout(state.layoutByWorkspace, workspaceKey);
+          const tab = collectAllTabs(layout.root).find((entry) => entry.tabId === input.tabId);
+          if (!tab || !panelTargetSupportsHostForWorkspaceKey(workspaceKey, tab.target, "explorer"))
+            return;
+          const previous = getWorkspaceToolWindows(state, workspaceKey);
+          const source = findPaneContainingTab(layout.root, input.tabId);
+          const revealed = setPaneHiddenInLayout({ layout, paneId, hidden: false }) ?? layout;
+          set({ layoutByWorkspace: { ...state.layoutByWorkspace, [workspaceKey]: revealed } });
+          if (source?.id !== paneId) get().moveTabToPane(workspaceKey, input.tabId, paneId);
+          set((current) => {
+            const tools = getWorkspaceToolWindows(current, workspaceKey);
+            const currentLayout = getWorkspaceLayout(current.layoutByWorkspace, workspaceKey);
+            const focused =
+              selectTabInPaneInLayout({ layout: currentLayout, paneId, tabId: input.tabId }) ??
+              currentLayout;
+            return {
+              layoutByWorkspace: { ...current.layoutByWorkspace, [workspaceKey]: focused },
+              toolWindowsByWorkspace: {
+                ...current.toolWindowsByWorkspace,
+                [workspaceKey]: moveToolWindow(
+                  { ...tools, activeByRegion: previous.activeByRegion },
+                  input,
+                ),
+              },
+            };
+          });
+        },
+        prepareToolWindowLaunch: (workspaceKey) => {
+          const previous = getWorkspaceToolWindows(get(), workspaceKey);
+          const paneId = get().showExplorerSidebar(workspaceKey);
+          set((state) => ({
+            toolWindowsByWorkspace: {
+              ...state.toolWindowsByWorkspace,
+              [workspaceKey]: {
+                ...getWorkspaceToolWindows(state, workspaceKey),
+                activeByRegion: previous.activeByRegion,
+              },
+            },
+          }));
+          return paneId;
+        },
+        resizeToolWindow: (workspaceKey, region, size) => {
+          if (!Number.isFinite(size) || size <= 0) return;
+          const clampedSize = Math.max(region === "bottom" ? 160 : 180, size);
+          set((state) => {
+            const tools = getWorkspaceToolWindows(state, workspaceKey);
+            return {
+              toolWindowsByWorkspace: {
+                ...state.toolWindowsByWorkspace,
+                [workspaceKey]: { ...tools, sizes: { ...tools.sizes, [region]: clampedSize } },
               },
             };
           });
@@ -1512,6 +1791,12 @@ export function createWorkspaceLayoutStore(
 
             return {
               ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              toolWindowsByWorkspace: revealWorkspaceToolWindow({
+                state,
+                workspaceKey: normalizedWorkspaceKey,
+                layout: nextLayout,
+                tabId: normalizedTabId,
+              }),
               // Choosing a tab dismisses the sheets that cover it.
               ...dismissSheets(state, normalizedWorkspaceKey),
               layoutByWorkspace: {
@@ -2234,6 +2519,7 @@ export function createWorkspaceLayoutStore(
             const hasAny =
               normalizedWorkspaceKey in state.pendingOpenByWorkspace ||
               normalizedWorkspaceKey in state.layoutByWorkspace ||
+              normalizedWorkspaceKey in state.toolWindowsByWorkspace ||
               normalizedWorkspaceKey in state.splitSizesByWorkspace ||
               normalizedWorkspaceKey in state.explorerSidebarWidthByWorkspace ||
               normalizedWorkspaceKey in state.pinnedAgentIdsByWorkspace ||
@@ -2252,6 +2538,8 @@ export function createWorkspaceLayoutStore(
               [normalizedWorkspaceKey]: _autoOpened,
               ...pullRequestTabAutoOpenedByWorkspace
             } = state.pullRequestTabAutoOpenedByWorkspace;
+            const { [normalizedWorkspaceKey]: _tools, ...toolWindowsByWorkspace } =
+              state.toolWindowsByWorkspace;
             const { [normalizedWorkspaceKey]: _layout, ...layoutByWorkspace } =
               state.layoutByWorkspace;
             const { [normalizedWorkspaceKey]: _splits, ...splitSizesByWorkspace } =
@@ -2276,6 +2564,7 @@ export function createWorkspaceLayoutStore(
               ...withSheets(state, normalizedWorkspaceKey, NO_SHEETS),
               pendingOpenByWorkspace,
               pullRequestTabAutoOpenedByWorkspace,
+              toolWindowsByWorkspace,
               layoutByWorkspace,
               splitSizesByWorkspace,
               explorerSidebarWidthByWorkspace,
@@ -2297,6 +2586,7 @@ export function createWorkspaceLayoutStore(
         migrate: (persistedState, version) =>
           migrateWorkspaceLayoutPersistedState(persistedState, version, ids),
         partialize: createPersistedStateProjection(),
+
         merge: (persistedState, currentState) => {
           const result = WorkspaceLayoutPersistedStateSchema.safeParse(persistedState);
           if (!result.success) {
@@ -2323,13 +2613,20 @@ export function createWorkspaceLayoutStore(
               registeredPaneId: explorerSidebarPaneIdByWorkspace[workspaceKey],
               ids,
             });
-            layoutByWorkspace[workspaceKey] = explorerSidebar?.layout ?? restoredLayout;
+            const nextLayout = explorerSidebar?.layout ?? restoredLayout;
+            const explorerPaneId =
+              explorerSidebar?.paneId ?? explorerSidebarPaneIdByWorkspace[workspaceKey];
+            layoutByWorkspace[workspaceKey] =
+              currentState.layoutMode === "split-panes"
+                ? nextLayout
+                : restoreToolTerminalsToMain(nextLayout, explorerPaneId);
             if (explorerSidebar) {
               explorerSidebarPaneIdByWorkspace[workspaceKey] = explorerSidebar.paneId;
             }
           }
           return {
             ...currentState,
+            toolWindowsByWorkspace: result.data.toolWindowsByWorkspace ?? {},
             layoutByWorkspace,
             pinnedAgentIdsByWorkspace: Object.fromEntries(
               Object.entries(result.data.pinnedAgentIdsByWorkspace ?? {}).map(([key, agentIds]) => [

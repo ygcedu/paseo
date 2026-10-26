@@ -632,6 +632,18 @@ export const es: TranslationResources = {
       openAsTab: "Abrir como pestaña",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "Mostrar todos los terminales",
+        add: "Añadir panel",
+        configure: "Opciones del panel",
+        minimize: "Minimizar panel",
+        remove: "Quitar panel",
+        move: {
+          left: "Mover a la izquierda",
+          right: "Mover a la derecha",
+          bottom: "Mover abajo",
+        },
+      },
       loading: "Cargando...",
       modified: "Cambios sin guardar",
       loadingAgentTitle: "Título del agente de carga",

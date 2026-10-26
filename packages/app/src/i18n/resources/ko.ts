@@ -627,6 +627,18 @@ export const ko: TranslationResources = {
       openAsTab: "탭으로 열기",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "모든 터미널 보기",
+        add: "패널 추가",
+        configure: "패널 옵션",
+        minimize: "패널 최소화",
+        remove: "패널 제거",
+        move: {
+          left: "왼쪽으로 이동",
+          right: "오른쪽으로 이동",
+          bottom: "아래쪽으로 이동",
+        },
+      },
       loading: "불러오는 중...",
       modified: "저장되지 않은 변경사항",
       loadingAgentTitle: "에이전트 제목 불러오는 중",

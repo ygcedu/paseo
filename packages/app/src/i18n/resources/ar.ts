@@ -626,6 +626,18 @@ export const ar: TranslationResources = {
       openAsTab: "فتح كعلامة تبويب",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "عرض جميع المحطات",
+        add: "إضافة لوحة",
+        configure: "خيارات اللوحة",
+        minimize: "تصغير اللوحة",
+        remove: "إزالة اللوحة",
+        move: {
+          left: "نقل إلى اليسار",
+          right: "نقل إلى اليمين",
+          bottom: "نقل إلى الأسفل",
+        },
+      },
       loading: "تحميل...",
       modified: "تغييرات غير محفوظة",
       loadingAgentTitle: "جارٍ تحميل عنوان الوكيل",

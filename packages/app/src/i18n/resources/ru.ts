@@ -633,6 +633,18 @@ export const ru: TranslationResources = {
       openAsTab: "Открыть во вкладке",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "Показать все терминалы",
+        add: "Добавить панель",
+        configure: "Параметры панели",
+        minimize: "Свернуть панель",
+        remove: "Убрать панель",
+        move: {
+          left: "Переместить влево",
+          right: "Переместить вправо",
+          bottom: "Переместить вниз",
+        },
+      },
       loading: "Загрузка...",
       modified: "Несохранённые изменения",
       loadingAgentTitle: "Загрузка названия агента",

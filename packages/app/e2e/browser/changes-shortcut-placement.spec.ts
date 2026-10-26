@@ -17,7 +17,7 @@ test("Changes shortcut reveals the Changes tree in Explorer", async ({ page }) =
     await page.keyboard.press(CHANGES_SHORTCUT);
 
     const explorer = page.getByTestId("workspace-explorer-sidebar").filter({ visible: true });
-    await expect(explorer.getByTestId("workspace-tab-changes_tree")).toBeVisible({
+    await expect(page.getByTestId("tool-window-icon-changes_tree")).toBeVisible({
       timeout: 30_000,
     });
     await expect(explorer.getByTestId("changes-tree-panel")).toBeVisible();

@@ -8,7 +8,11 @@ import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
 import { getServerId } from "../support/helpers/server-id";
 import { connectSeedClient } from "../support/helpers/seed-client";
 import { createTempGitRepo } from "../support/helpers/workspace";
-import { openChangesPanel, waitForWorkspaceTabsVisible } from "../support/helpers/workspace-tabs";
+import {
+  openChangesPanel,
+  openChangesTreePanel,
+  waitForWorkspaceTabsVisible,
+} from "../support/helpers/workspace-tabs";
 
 interface DirtyWorkspace {
   id: string;
@@ -1007,9 +1011,7 @@ test("canvas diff stays sharp while its workspace pane is resized", async ({ pag
 
   const canvas = page.getByTestId("git-diff-canvas");
   const root = page.getByTestId("git-diff-canvas-root");
-  const handle = page
-    .getByTestId("workspace-explorer-sidebar-resize-handle")
-    .getByRole("separator");
+  const handle = page.getByTestId("tool-window-resize-left").getByRole("separator");
   await expect(handle).toBeVisible();
   await expect
     .poll(async () => {
@@ -1034,7 +1036,7 @@ test("canvas diff stays sharp while its workspace pane is resized", async ({ pag
 
   await page.mouse.move(handleBounds.x + handleBounds.width / 2, handleBounds.y + 120);
   await page.mouse.down();
-  await page.mouse.move(handleBounds.x + 120, handleBounds.y + 120);
+  await page.mouse.move(handleBounds.x - 120, handleBounds.y + 120);
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
   const duringDrag = await Promise.all([
@@ -1906,8 +1908,7 @@ async function openSelectionWorkspaceChanges(page: Page, workspace: DirtyWorkspa
 async function openChangesInVisibleExplorer(page: Page): Promise<void> {
   const explorer = page.getByTestId("workspace-explorer-sidebar");
   await expect(explorer).toBeVisible({ timeout: 30_000 });
-  const changesTab = explorer.getByRole("button", { name: /Working tree diff/i }).first();
-  await changesTab.click();
+  await openChangesTreePanel(page);
   const changedFile = explorer
     .locator('[data-testid^="diff-tree-file-"][data-testid$="-toggle"]')
     .filter({ visible: true })

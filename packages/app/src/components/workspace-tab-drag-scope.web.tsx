@@ -1,3 +1,8 @@
+import {
+  isToolWindowDropData,
+  type ToolWindowDropData,
+} from "@/screens/workspace/tool-windows/dnd";
+import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -61,7 +66,10 @@ function asWorkspaceTabDragData(data: unknown): WorkspaceTabDragData | undefined
   return isWorkspaceTabDragData(data) ? data : undefined;
 }
 
-function asDragOverData(data: unknown): WorkspaceTabDragData | SplitPaneDropData | undefined {
+function asDragOverData(
+  data: unknown,
+): WorkspaceTabDragData | SplitPaneDropData | ToolWindowDropData | undefined {
+  if (isToolWindowDropData(data)) return data;
   if (isWorkspaceTabDragData(data)) return data;
   if (isSplitPaneDropData(data)) return data;
   return undefined;
@@ -145,6 +153,10 @@ function computePaneOverDropPreview(input: {
 
 const dropCollisionDetection: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
+  const toolHits = pointerHits.filter(
+    (entry) => entry.data?.droppableContainer.data.current?.kind === "tool-window-region",
+  );
+  if (toolHits.length > 0) return toolHits;
   const tabHits = pointerHits.filter(
     (entry) => entry.data?.droppableContainer.data.current?.kind === "workspace-tab",
   );
@@ -232,7 +244,16 @@ export function WorkspaceTabDragScope({
       const activeData = asWorkspaceTabDragData(event.active.data.current);
       const overData = asDragOverData(event.over?.data.current);
 
+      if (overData?.kind === "tool-window-region") {
+        setDropPreview(null);
+        setTabDropPreview(null);
+        return;
+      }
+      const movingGroupedTerminal =
+        allowCrossPane &&
+        uiTabs.find((tab) => tab.tabId === activeData?.tabId)?.target.kind === "terminal";
       if (
+        movingGroupedTerminal ||
         !activeData ||
         !overData ||
         !acceptsWorkspaceTabDrop(allowCrossPane, activeData.paneId, overData)
@@ -250,10 +271,7 @@ export function WorkspaceTabDragScope({
       }
 
       const activeTab = uiTabs.find((tab) => tab.tabId === activeData.tabId) ?? null;
-      const destinationPaneId =
-        overData?.kind === "workspace-tab" || overData?.kind === "split-pane-drop"
-          ? overData.paneId
-          : null;
+      const destinationPaneId = overData.paneId;
       const destinationHost = destinationPaneId === explorerSidebarPaneId ? "explorer" : "main";
       if (
         !activeTab ||
@@ -264,7 +282,7 @@ export function WorkspaceTabDragScope({
         return;
       }
 
-      if (overData?.kind === "workspace-tab") {
+      if (overData.kind === "workspace-tab") {
         const preview = computeTabOverDropPreview({
           activeData,
           overData,
@@ -278,7 +296,7 @@ export function WorkspaceTabDragScope({
       }
 
       setTabDropPreview(null);
-      if (overData?.kind !== "split-pane-drop") {
+      if (overData.kind !== "split-pane-drop") {
         setDropPreview(null);
         return;
       }
@@ -357,8 +375,21 @@ export function WorkspaceTabDragScope({
 
       setActiveDragTabId(null);
 
-      if (
+      const movingGroupedTerminal =
+        allowCrossPane &&
+        uiTabs.find((tab) => tab.tabId === activeData?.tabId)?.target.kind === "terminal";
+      if (activeData && overData?.kind === "tool-window-region" && allowCrossPane) {
+        useWorkspaceLayoutStore
+          .getState()
+          .moveToolWindow(`${normalizedServerId}:${normalizedWorkspaceId}`, {
+            tabId: activeData.tabId,
+            region: overData.region,
+            beforeTabId: overData.beforeTabId,
+          });
+      } else if (
+        !movingGroupedTerminal &&
         activeData &&
+        overData?.kind !== "tool-window-region" &&
         overData &&
         event.over &&
         acceptsWorkspaceTabDrop(allowCrossPane, activeData.paneId, overData)
@@ -373,7 +404,14 @@ export function WorkspaceTabDragScope({
       setDropPreview(null);
       setTabDropPreview(null);
     },
-    [allowCrossPane, applyTabDropEnd, applyPaneDropEnd],
+    [
+      allowCrossPane,
+      applyTabDropEnd,
+      applyPaneDropEnd,
+      normalizedServerId,
+      normalizedWorkspaceId,
+      uiTabs,
+    ],
   );
 
   const context = useMemo(

@@ -34,9 +34,9 @@ export default function contribute(client) {
 }
 
 async function openExplorerMenu(page: Page) {
-  const explorer = await ensureExplorerSidebar(page);
-  await explorer.getByRole("button", { name: "New tab", exact: true }).click();
-  const menu = page.getByTestId("workspace-new-tab-menu").filter({ visible: true });
+  await ensureExplorerSidebar(page);
+  await page.getByTestId("tool-window-add-left").click();
+  const menu = page.getByTestId("tool-window-add-menu-left").filter({ visible: true });
   await expect(menu).toBeVisible();
   await expect(menu).toHaveCSS("opacity", "1");
   return menu;
@@ -119,27 +119,45 @@ export async function expectIndependentExplorerPanelTabs(
     page.getByText(`Other review workspace ${workspace.workspaceId}`, { exact: true }),
   ).toBeVisible();
   await launchExplorerView(page, "Review summary");
-  const tabs = page.getByTestId("workspace-explorer-sidebar").getByTestId("workspace-tabs-row");
-  await expect(tabs.getByRole("button", { name: "Review", exact: true })).toBeVisible();
-  await expect(tabs.getByRole("button", { name: "Other review", exact: true })).toBeVisible();
-  await expect(tabs.getByRole("button", { name: "Review summary", exact: true })).toBeVisible();
-  await tabs
-    .getByRole("button", { name: "Review", exact: true })
-    .click({ button: "right", position: { x: 12, y: 13 } });
-  await page.getByRole("menuitem", { name: "Close", exact: true }).click();
-  await expect(tabs.getByRole("button", { name: "Review", exact: true })).toHaveCount(0);
-  await expect(tabs.getByRole("button", { name: "Other review", exact: true })).toBeVisible();
-  await expect(tabs.getByRole("button", { name: "Review summary", exact: true })).toBeVisible();
-  const files = tabs.getByRole("button", { name: "Browse workspace files", exact: true });
-  await expect(files).toHaveCount(1);
+  const rail = page.getByTestId("tool-window-rail-left");
+  await expect(rail.getByRole("button", { name: "Review", exact: true })).toBeVisible();
+  await expect(rail.getByRole("button", { name: "Other review", exact: true })).toBeVisible();
+  await expect(rail.getByRole("button", { name: "Review summary", exact: true })).toBeVisible();
+  const summary = page
+    .locator('[data-testid^="tool-window-panel-"]')
+    .filter({ has: page.getByText("Summary content", { exact: true }), visible: true });
+  await summary.getByRole("button", { name: "Panel options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Move to right", exact: true }).click();
+  await expect(
+    page
+      .getByTestId("tool-window-rail-right")
+      .getByRole("button", { name: "Review summary", exact: true }),
+  ).toBeVisible();
+  await expect(summary).toBeVisible();
+  await rail.getByRole("button", { name: "Review", exact: true }).click();
+  const review = page.locator('[data-testid^="tool-window-panel-"]').filter({
+    has: page.getByText(`Review workspace ${workspace.workspaceId}`, { exact: true }),
+    visible: true,
+  });
+  await review.getByRole("button", { name: "Panel options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Remove panel", exact: true }).click();
+  await expect(rail.getByRole("button", { name: "Review", exact: true })).toHaveCount(0);
+  await expect(rail.getByRole("button", { name: "Other review", exact: true })).toBeVisible();
+  await expect(summary).toBeVisible();
+  const files = page.getByTestId("tool-window-icon-files");
+  await expect(files).toBeVisible();
   const menu = await openExplorerMenu(page);
   await expect(menu.getByRole("menuitem", { name: /^Files/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await files.click({ button: "right", position: { x: 12, y: 13 } });
-  await page.getByRole("menuitem", { name: "Close", exact: true }).click();
+  await files.click();
+  await page.getByTestId("tool-window-configure-files").click();
+  await page.getByRole("menuitem", { name: "Remove panel", exact: true }).click();
   await expect(files).toHaveCount(0);
   await launchExplorerView(page, /^Files/);
-  await expect(files).toHaveCount(1);
+  const restoredFiles = page
+    .getByTestId("tool-window-rail-left")
+    .getByRole("button", { name: "Files", exact: true });
+  await expect(restoredFiles).toBeVisible();
   const restoredMenu = await openExplorerMenu(page);
   await expect(restoredMenu.getByRole("menuitem", { name: /^Files/ })).toHaveCount(0);
   await page.keyboard.press("Escape");

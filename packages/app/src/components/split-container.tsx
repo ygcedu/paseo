@@ -1,3 +1,10 @@
+import { useTranslation } from "react-i18next";
+import { ToolWindowWorkspace } from "@/screens/workspace/tool-windows/workspace";
+import {
+  buildWorkspaceTabMenuEntries,
+  getWorkspaceTabMenuLabels,
+} from "@/screens/workspace/workspace-tab-menu";
+import type { ToolWindowMenuBuilder } from "@/screens/workspace/tool-windows/actions";
 import { useWorkspaceTabDrag } from "./workspace-tab-drag-context";
 import {
   Fragment,
@@ -31,7 +38,6 @@ import {
   WindowChromeRegion,
   WindowChromeSafeArea,
   useWindowChromeCorners,
-  removeWindowChromeCorner,
   type WindowChromeCorners,
 } from "@/utils/desktop-window";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
@@ -95,17 +101,13 @@ interface SplitContainerProps {
     position: "left" | "right" | "top" | "bottom";
   }) => void;
   onMoveTabToPane: (tabId: string, toPaneId: string) => void;
-  onSelectTabInPane: (paneId: string, tabId: string) => void;
   onResizeSplit: (groupId: string, sizes: number[]) => void;
   onReorderTabsInPane: (paneId: string, tabIds: string[]) => void;
   focusModeEnabled?: boolean;
   onExitFocusMode: () => void;
 }
 
-interface SplitNodeViewProps extends Omit<
-  SplitContainerProps,
-  "layout" | "onMoveTabToPane" | "onSelectTabInPane"
-> {
+interface SplitNodeViewProps extends Omit<SplitContainerProps, "layout" | "onMoveTabToPane"> {
   node: SplitNode;
   uiTabs: WorkspaceTab[];
   focusedPaneId: string | null;
@@ -174,6 +176,8 @@ export function SplitContainer({
   focusModeEnabled,
   onExitFocusMode,
 }: SplitContainerProps) {
+  const { t } = useTranslation();
+  const toolMenuLabels = useMemo(() => getWorkspaceTabMenuLabels(t), [t]);
   const inheritedWindowChromeCorners = useWindowChromeCorners();
   const windowChromeCorners = focusModeEnabled ? inheritedWindowChromeCorners : "none";
   const { activeDragTabId, dropPreview, tabDropPreview } = useWorkspaceTabDrag();
@@ -225,61 +229,102 @@ export function SplitContainer({
   const explorerPane = explorerSidebarPaneId
     ? collectAllPanes(layout.root).find((pane) => pane.id === explorerSidebarPaneId)
     : null;
-  const mainColumnWindowChromeCorners =
-    !focusModeEnabled && explorerPane && !explorerPane.hidden
-      ? removeWindowChromeCorner(inheritedWindowChromeCorners, "top-right")
-      : inheritedWindowChromeCorners;
-  const mainColumnStyle = styles.mainColumn;
+  const buildToolTabMenu = useCallback<ToolWindowMenuBuilder>(
+    ({ tab, tabs }) =>
+      buildWorkspaceTabMenuEntries({
+        surface: tab.target.kind === "terminal" ? "desktop" : "mobile",
+        labels: toolMenuLabels,
+        tab,
+        index: tabs.findIndex((entry) => entry.tabId === tab.tabId),
+        tabCount: tabs.length,
+        menuTestIDBase: `tool-window-context-${tab.tabId}`,
+        onCopyResumeCommand,
+        onCopyAgentId,
+        onCopyTerminalId,
+        onCopyFilePath,
+        onReloadAgent,
+        onRenameTab,
+        onCloseTab,
+        onCloseTabsBefore: (id) => onCloseTabsToLeft(id, tabs),
+        onCloseTabsAfter: (id) => onCloseTabsToRight(id, tabs),
+        onCloseOtherTabs: (id) => onCloseOtherTabs(id, tabs),
+      }),
+    [
+      toolMenuLabels,
+      onCopyResumeCommand,
+      onCopyAgentId,
+      onCopyTerminalId,
+      onCopyFilePath,
+      onReloadAgent,
+      onRenameTab,
+      onCloseTab,
+      onCloseTabsToLeft,
+      onCloseTabsToRight,
+      onCloseOtherTabs,
+    ],
+  );
   const renderRoot = useMemo(() => wrapRootPaneForStableMount(splitRoot.root), [splitRoot.root]);
   return (
     <RenderProfile id="SplitContainer">
       <View style={styles.workspaceShell}>
-        <WindowChromeRegion corners={mainColumnWindowChromeCorners}>
-          <View style={mainColumnStyle}>
+        <WindowChromeRegion corners={inheritedWindowChromeCorners}>
+          <View style={styles.mainColumn}>
             {renderMainHeader?.()}
-            {splitRoot.usesFallbackStrip && <WindowChromeSafeArea placement="below" />}
-            {renderRoot ? (
-              <SplitNodeView
-                node={renderRoot}
-                workspaceKey={workspaceKey}
-                uiTabs={uiTabs}
-                focusedPaneId={layout.focusedPaneId}
-                normalizedServerId={normalizedServerId}
-                normalizedWorkspaceId={normalizedWorkspaceId}
-                isWorkspaceFocused={isWorkspaceFocused}
-                hoveredCloseTabKey={hoveredCloseTabKey}
-                setHoveredCloseTabKey={setHoveredCloseTabKey}
-                closingTabIds={closingTabIds}
-                onNavigateTab={onNavigateTab}
-                onCloseTab={onCloseTab}
-                onCopyResumeCommand={onCopyResumeCommand}
-                onCopyAgentId={onCopyAgentId}
-                onCopyTerminalId={onCopyTerminalId}
-                onCopyFilePath={onCopyFilePath}
-                onReloadAgent={onReloadAgent}
-                onRenameTab={onRenameTab}
-                onCloseTabsToLeft={onCloseTabsToLeft}
-                onCloseTabsToRight={onCloseTabsToRight}
-                onCloseOtherTabs={onCloseOtherTabs}
-                onCreateNewTab={onCreateNewTab}
-                buildPaneContentModel={buildPaneContentModel}
-                onFocusPane={onFocusPane}
-                onSplitPane={onSplitPane}
-                onSplitPaneEmpty={onSplitPaneEmpty}
-                onResizeSplit={onResizeSplit}
-                onReorderTabsInPane={onReorderTabsInPane}
-                activeDragTabId={activeDragTabId}
-                showDropZones={activeDragTabId !== null}
-                dropPreview={dropPreview}
-                tabDropPreview={tabDropPreview}
-                windowChromeCorners={splitRoot.usesFallbackStrip ? "none" : windowChromeCorners}
-                maximizedPaneId={maximizedPaneId}
-                workspaceHasMultiplePanes={workspaceHasMultiplePanes}
-                onTogglePaneMaximized={handleTogglePaneMaximized}
-                focusModeEnabled={focusModeEnabled}
-                onExitFocusMode={onExitFocusMode}
-              />
-            ) : null}
+            <ToolWindowWorkspace
+              workspaceKey={workspaceKey}
+              serverId={normalizedServerId}
+              workspaceId={normalizedWorkspaceId}
+              pane={explorerPane ?? null}
+              uiTabs={uiTabs}
+              isWorkspaceFocused={isWorkspaceFocused}
+              focusModeEnabled={focusModeEnabled === true}
+              buildTabMenu={buildToolTabMenu}
+              buildPaneContentModel={buildPaneContentModel}
+            >
+              {splitRoot.usesFallbackStrip && <WindowChromeSafeArea placement="below" />}
+              {renderRoot ? (
+                <SplitNodeView
+                  node={renderRoot}
+                  workspaceKey={workspaceKey}
+                  uiTabs={uiTabs}
+                  focusedPaneId={layout.focusedPaneId}
+                  normalizedServerId={normalizedServerId}
+                  normalizedWorkspaceId={normalizedWorkspaceId}
+                  isWorkspaceFocused={isWorkspaceFocused}
+                  hoveredCloseTabKey={hoveredCloseTabKey}
+                  setHoveredCloseTabKey={setHoveredCloseTabKey}
+                  closingTabIds={closingTabIds}
+                  onNavigateTab={onNavigateTab}
+                  onCloseTab={onCloseTab}
+                  onCopyResumeCommand={onCopyResumeCommand}
+                  onCopyAgentId={onCopyAgentId}
+                  onCopyTerminalId={onCopyTerminalId}
+                  onCopyFilePath={onCopyFilePath}
+                  onReloadAgent={onReloadAgent}
+                  onRenameTab={onRenameTab}
+                  onCloseTabsToLeft={onCloseTabsToLeft}
+                  onCloseTabsToRight={onCloseTabsToRight}
+                  onCloseOtherTabs={onCloseOtherTabs}
+                  onCreateNewTab={onCreateNewTab}
+                  buildPaneContentModel={buildPaneContentModel}
+                  onFocusPane={onFocusPane}
+                  onSplitPane={onSplitPane}
+                  onSplitPaneEmpty={onSplitPaneEmpty}
+                  onResizeSplit={onResizeSplit}
+                  onReorderTabsInPane={onReorderTabsInPane}
+                  activeDragTabId={activeDragTabId}
+                  showDropZones={activeDragTabId !== null}
+                  dropPreview={dropPreview}
+                  tabDropPreview={tabDropPreview}
+                  windowChromeCorners={splitRoot.usesFallbackStrip ? "none" : windowChromeCorners}
+                  maximizedPaneId={maximizedPaneId}
+                  workspaceHasMultiplePanes={workspaceHasMultiplePanes}
+                  onTogglePaneMaximized={handleTogglePaneMaximized}
+                  focusModeEnabled={focusModeEnabled}
+                  onExitFocusMode={onExitFocusMode}
+                />
+              ) : null}
+            </ToolWindowWorkspace>
           </View>
         </WindowChromeRegion>
       </View>

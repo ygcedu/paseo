@@ -632,6 +632,18 @@ export const ja: TranslationResources = {
       openAsTab: "タブで開く",
     },
     tabs: {
+      toolWindows: {
+        allTerminals: "すべてのターミナルを表示",
+        add: "パネルを追加",
+        configure: "パネルの設定",
+        minimize: "パネルを最小化",
+        remove: "パネルを削除",
+        move: {
+          left: "左に移動",
+          right: "右に移動",
+          bottom: "下に移動",
+        },
+      },
       loading: "読み込み中...",
       modified: "未保存の変更",
       loadingAgentTitle: "エージェントタイトルを読み込み中",
