@@ -23,9 +23,15 @@ Desktop dev launches its desktop-managed daemon with `PASEO_NODE_ENV=development
 so development-only providers such as Mock Load Test are available. Packaged
 desktop launches always force the daemon to production mode.
 
-The web and desktop dev launchers pass the current Git branch to Metro as
-`EXPO_PUBLIC_PASEO_DEV_BUILD_LABEL`. The expanded desktop sidebar shows it in
-the titlebar row. Production builds leave the variable unset and show no label.
+The workspace run menu's `web-ui` service starts the browser UI from the current checkout and connects to the installed daemon at `localhost:6767`, so you can preview UI changes against your existing workspaces. It uses a fixed port (`8081`) and opens `http://localhost:8081` in your default browser. The terminal tab shows Metro logs. Browser host connections and UI settings are stored per origin, so changing ports creates a separate set of saved settings. The `app` service continues to target the workspace's development daemon.
+
+To run the same preview from a terminal:
+
+```bash
+PASEO_DEV_DAEMON_ENDPOINT=localhost:6767 npm run dev:app
+```
+
+Expo's Metro dev server watches source files and sends changed modules to the browser over its development WebSocket. React Fast Refresh applies component edits and preserves local state when possible. Changes outside a refresh boundary can reload the page; native dependencies and bundler configuration can require a rebuild or dev-server restart. This applies to the dev UI, not the bundled UI shipped with the installed app.
 
 `npm run dev` is only a shorthand for `npm run dev:server`. Keep `127.0.0.1:6767` for the packaged app and production-style `~/.paseo` state.
 
