@@ -218,6 +218,7 @@ export interface AnchoredSurfaceProps {
   align?: Alignment;
   offset?: number;
   width?: number;
+  shadow?: "md" | "popover";
   minWidth?: number;
   maxWidth?: number;
   maxHeight?: number;
@@ -253,6 +254,7 @@ export function AnchoredSurface({
   align = "start",
   offset = 4,
   width,
+  shadow,
   minWidth = 180,
   maxWidth,
   maxHeight,
@@ -381,7 +383,7 @@ export function AnchoredSurface({
         nativeID={surfaceNativeID}
         testID={testID}
         dataSet={surfaceDataSet}
-        style={styles.content}
+        style={[styles.content, styles.shadowDepth(shadow)]}
         frameStyle={frameStyle}
         entering={placed ? contentEntering : undefined}
         exiting={
@@ -533,12 +535,12 @@ const styles = StyleSheet.create((theme) => ({
     bottom: 0,
     left: 0,
   },
+  shadowDepth: (depth: "md" | "popover" | undefined) => ({ ...theme.shadow[depth ?? "md"] }),
   content: {
     backgroundColor: theme.colors.surface1,
     borderWidth: 1,
     borderColor: theme.colors.borderAccent,
     borderRadius: theme.borderRadius.lg,
     overflow: "hidden",
-    ...theme.shadow.md,
   },
 }));

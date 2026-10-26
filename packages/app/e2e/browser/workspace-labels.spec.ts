@@ -159,9 +159,10 @@ test.describe("Workspace labels", () => {
       });
       await gotoAppShell(page);
 
-      await page.getByTestId("sidebar-display-preferences-menu").click();
-      await page.getByTestId("sidebar-display-label-filter").click();
-      // Clear only exists once something is filtered, so the row has to be selected first.
+      if (!(await page.getByTestId("sidebar-filters-content").isVisible())) {
+        await page.getByTestId("sidebar-filters-trigger").click();
+      }
+      await page.getByTestId("sidebar-filter-label").click();
       await expect(page.getByTestId("sidebar-label-filter-clear")).toBeHidden();
       await page.getByTestId("sidebar-label-filter-option-Unused").click();
 
@@ -169,10 +170,8 @@ test.describe("Workspace labels", () => {
       await expect(page.getByTestId("sidebar-project-empty-state")).toBeHidden();
       await expect(page.getByTestId("sidebar-display-preferences-menu")).toBeVisible();
 
-      // Emptying the sidebar swaps the list's body and nothing above it, so the page the filter
-      // was set on is still up over the empty state and clearing it is one press away.
-      await expect(page.getByTestId("sidebar-label-filter-clear")).toBeVisible();
-      await page.getByTestId("sidebar-label-filter-clear").click();
+      await expect(page.getByTestId("sidebar-label-filter-clear")).toHaveCount(0);
+      await page.getByTestId("sidebar-label-filter-option-Unused").click();
       await expect(
         page.getByTestId(`sidebar-workspace-row-${getServerId()}:${seeded.workspaceId}`),
       ).toBeVisible();
@@ -231,8 +230,10 @@ test.describe("Workspace labels", () => {
         const unlabelledRow = page.getByTestId(
           `sidebar-workspace-row-${getServerId()}:${unlabelled.workspaceId}`,
         );
-        await page.getByTestId("sidebar-display-preferences-menu").click();
-        await page.getByTestId("sidebar-display-label-filter").click();
+        if (!(await page.getByTestId("sidebar-filters-content").isVisible())) {
+          await page.getByTestId("sidebar-filters-trigger").click();
+        }
+        await page.getByTestId("sidebar-filter-label").click();
 
         const urgent = page.getByTestId("sidebar-label-filter-option-Urgent");
         const frontend = page.getByTestId("sidebar-label-filter-option-Frontend");
@@ -264,8 +265,9 @@ test.describe("Workspace labels", () => {
         await expect(labelledRow).toBeVisible();
         await expect(unlabelledRow).toBeVisible();
 
-        // Clear restores the complete sidebar without leaving the filter page.
-        await page.getByTestId("sidebar-label-filter-clear").click();
+        // Deselecting the chosen labels restores the complete sidebar.
+        await urgent.click();
+        await unlabelledLabel.click();
         await expect(page.getByTestId("sidebar-filter-empty-state")).toBeHidden();
         await expect(page.getByTestId("sidebar-label-filter-clear")).toBeHidden();
         await expect(labelledRow).toBeVisible();
@@ -278,8 +280,10 @@ test.describe("Workspace labels", () => {
       });
 
       await test.step("editing a label is one operation and preserves its assignments", async () => {
-        await page.getByTestId("sidebar-display-preferences-menu").click();
-        await page.getByTestId("sidebar-display-label-filter").click();
+        if (!(await page.getByTestId("sidebar-filters-content").isVisible())) {
+          await page.getByTestId("sidebar-filters-trigger").click();
+        }
+        await page.getByTestId("sidebar-filter-label").click();
         await page.getByTestId("sidebar-label-manage").click();
         await expect(page.getByText("Manage labels", { exact: true })).toBeVisible();
 

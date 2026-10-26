@@ -1174,6 +1174,7 @@ export const en = {
       done: "Done",
     },
     display: {
+      trailing: "Right side",
       showBackground: "Show background",
       trigger: "Display preferences",
       heading: "Display",
@@ -1212,6 +1213,21 @@ export const en = {
         icon: "Icon only",
         none: "Hidden",
       },
+      recency: {
+        short: {
+          "1": "24h",
+          "3": "3d",
+          "7": "7d",
+          "30": "30d",
+          all: "All",
+        },
+        label: "Recent conversations",
+        "1": "Last 24 hours",
+        "3": "Last 3 days",
+        "7": "Last 7 days",
+        "30": "Last 30 days",
+        all: "All",
+      },
       hostFilter: {
         label: "Host",
         all: "All hosts",
@@ -1221,6 +1237,7 @@ export const en = {
         all: "All projects",
       },
     },
+    filters: { heading: "Filter workspaces", searchProjects: "Search projects…" },
     filterEmpty: {
       title: "No workspaces match",
       description: "Change or clear the sidebar filters to see workspaces.",

@@ -1183,6 +1183,7 @@ export const ru: TranslationResources = {
       done: "Готово",
     },
     display: {
+      trailing: "Справа",
       showBackground: "Показать фоновые пространства",
       trigger: "Настройки отображения",
       heading: "Отображение",
@@ -1221,6 +1222,21 @@ export const ru: TranslationResources = {
         icon: "Только значок",
         none: "Скрыто",
       },
+      recency: {
+        short: {
+          "1": "24 ч",
+          "3": "3 д",
+          "7": "7 д",
+          "30": "30 д",
+          all: "Все",
+        },
+        label: "Недавние беседы",
+        "1": "За 24 часа",
+        "3": "За 3 дня",
+        "7": "За 7 дней",
+        "30": "За 30 дней",
+        all: "Все",
+      },
       hostFilter: {
         label: "Хост",
         all: "Все хосты",
@@ -1230,6 +1246,7 @@ export const ru: TranslationResources = {
         all: "Все проекты",
       },
     },
+    filters: { heading: "Фильтр рабочих пространств", searchProjects: "Поиск проектов…" },
     filterEmpty: {
       title: "Нет подходящих рабочих пространств",
       description:

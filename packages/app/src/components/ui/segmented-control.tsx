@@ -26,7 +26,10 @@ interface SegmentedControlProps<T extends string> {
   onValueChange: (value: T) => void;
   size?: SegmentedControlSize;
   hideLabels?: boolean;
+  selectionTone?: "neutral" | "success";
+  joined?: boolean;
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   testID?: string;
 }
 
@@ -51,7 +54,10 @@ export function SegmentedControl<T extends string>({
   onValueChange,
   size: sizeProp,
   hideLabels = false,
+  selectionTone = "neutral",
+  joined = false,
   style,
+  textStyle,
   testID,
 }: SegmentedControlProps<T>) {
   const containedSize = useContainedControlSize();
@@ -67,8 +73,8 @@ export function SegmentedControl<T extends string>({
   const iconSize = segmentedIconSize[size];
 
   const containerStyle = useMemo(
-    () => [styles.container, containerSizeStyle, style],
-    [containerSizeStyle, style],
+    () => [styles.container, containerSizeStyle, joined && styles.containerJoined, style],
+    [containerSizeStyle, joined, style],
   );
 
   return (
@@ -83,8 +89,11 @@ export function SegmentedControl<T extends string>({
             isSelected={isSelected}
             iconSize={iconSize}
             hideLabels={hideLabels}
+            selectionTone={selectionTone}
+            joined={joined}
             segmentSizeStyle={segmentSizeStyle}
             labelSizeStyle={labelSizeStyle}
+            textStyle={textStyle}
             currentValue={value}
             onValueChange={onValueChange}
           />
@@ -101,7 +110,10 @@ function SegmentItem<T extends string>({
   hideLabels,
   segmentSizeStyle,
   labelSizeStyle,
+  textStyle,
   currentValue,
+  selectionTone,
+  joined,
   onValueChange,
 }: {
   option: SegmentedControlOption<T>;
@@ -110,12 +122,21 @@ function SegmentItem<T extends string>({
   hideLabels: boolean;
   segmentSizeStyle: StyleProp<ViewStyle>;
   labelSizeStyle: StyleProp<TextStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  selectionTone: "neutral" | "success";
+  joined: boolean;
   currentValue: T;
   onValueChange: (value: T) => void;
 }) {
   const labelStyle = useMemo(
-    () => [styles.label, labelSizeStyle, isSelected && styles.labelSelected],
-    [labelSizeStyle, isSelected],
+    () => [
+      styles.label,
+      labelSizeStyle,
+      textStyle,
+      isSelected && styles.labelSelected,
+      isSelected && selectionTone === "success" && styles.labelSuccess,
+    ],
+    [labelSizeStyle, textStyle, isSelected, selectionTone],
   );
   const handlePress = useCallback(() => {
     if (!option.disabled && option.value !== currentValue) {
@@ -126,12 +147,14 @@ function SegmentItem<T extends string>({
     ({ hovered, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
       styles.segment,
       segmentSizeStyle,
+      joined && styles.segmentJoined,
       isSelected && styles.segmentSelected,
+      isSelected && selectionTone === "success" && styles.segmentSuccess,
       Boolean(hovered) && !isSelected && styles.segmentHover,
       pressed && !isSelected && styles.segmentPressed,
       option.disabled && styles.segmentDisabled,
     ],
-    [isSelected, option.disabled, segmentSizeStyle],
+    [isSelected, option.disabled, segmentSizeStyle, selectionTone, joined],
   );
   const accessibilityState = useMemo(
     () => ({ selected: isSelected, disabled: option.disabled }),
@@ -173,6 +196,16 @@ const styles = StyleSheet.create((theme) => {
       backgroundColor: "transparent",
       gap: theme.spacing[1],
     },
+    containerJoined: {
+      gap: 0,
+      alignItems: "stretch",
+      overflow: "hidden",
+      borderWidth: theme.borderWidth[1],
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.surface0,
+    },
+    segmentJoined: { borderRadius: 0 },
     containerXs: {
       ...geometry.segmentedContainerXs,
     },
@@ -182,6 +215,8 @@ const styles = StyleSheet.create((theme) => {
     containerMd: {
       ...geometry.segmentedContainerMd,
     },
+    segmentSuccess: { backgroundColor: theme.colors.statusSuccessTint },
+    labelSuccess: { color: theme.colors.statusSuccess, fontWeight: theme.fontWeight.medium },
     segment: {
       flexDirection: "row",
       alignItems: "center",

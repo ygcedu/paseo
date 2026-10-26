@@ -271,6 +271,8 @@ export function buildLightSemanticColors(tint: LightThemeConfig) {
     surfaceSidebarSelected: tint.surface4,
     surfaceWorkspace: tint.surface0,
     interactionHighlight: "rgba(0, 0, 0, 0.06)",
+    sidebarFilterSelectedForeground: "#087f83",
+    sidebarFilterSelectedBackground: "#e4f7f7",
 
     foreground: tint.foreground,
     foregroundMuted: tint.foregroundMuted,
@@ -402,6 +404,8 @@ export function buildDarkSemanticColors(tint: DarkThemeConfig) {
     surfaceSidebarSelected: tint.surface2,
     surfaceWorkspace: tint.surface1,
     interactionHighlight: "rgba(255, 255, 255, 0.08)",
+    sidebarFilterSelectedForeground: "#65d5d5",
+    sidebarFilterSelectedBackground: "#183638",
 
     foreground,
     foregroundMuted: tint.foregroundMuted,
@@ -678,6 +682,12 @@ const commonTheme: CommonTheme = {
 };
 
 const darkShadow = {
+  popover: {
+    shadowColor: "rgba(0, 0, 0, 0.50)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 16,
+  },
   sm: {
     shadowColor: "rgba(0, 0, 0, 0.25)",
     shadowOffset: { width: 0, height: 2 },
@@ -740,6 +750,12 @@ const pureBlackDarkColors = buildDarkSemanticColors({
 export const darkPureBlackTheme = buildDarkTheme(pureBlackDarkColors);
 
 const lightShadow = {
+  popover: {
+    shadowColor: "rgba(0, 0, 0, 0.24)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 16,
+  },
   sm: {
     shadowColor: "rgba(0, 0, 0, 0.08)",
     shadowOffset: { width: 0, height: 2 },
@@ -884,3 +900,8 @@ export function getNextThemePreference(current: ThemePreference): ThemePreferenc
   const nextIndex = (currentIndex + 1) % THEME_OPTIONS.length;
   return THEME_OPTIONS[nextIndex]?.name ?? THEME_OPTIONS[0].name;
 }
+
+export const sidebarQuickFilterColors = {
+  local: "#a855f7",
+  remote: "#3b82f6",
+};

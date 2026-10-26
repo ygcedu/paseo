@@ -1158,6 +1158,7 @@ export const zhCN: TranslationResources = {
       done: "已完成",
     },
     display: {
+      trailing: "右侧信息",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",
@@ -1196,15 +1197,31 @@ export const zhCN: TranslationResources = {
         icon: "仅图标",
         none: "隐藏",
       },
+      recency: {
+        short: {
+          "1": "24小时",
+          "3": "3天",
+          "7": "7天",
+          "30": "30天",
+          all: "全部",
+        },
+        label: "最近",
+        "1": "近24小时",
+        "3": "近3天",
+        "7": "近7天",
+        "30": "近30天",
+        all: "全部",
+      },
       hostFilter: {
         label: "主机",
-        all: "所有主机",
+        all: "全部",
       },
       projectFilter: {
         label: "项目",
-        all: "所有项目",
+        all: "全部",
       },
     },
+    filters: { heading: "筛选工作区", searchProjects: "搜索项目…" },
     filterEmpty: {
       title: "没有匹配的工作区",
       description: "更改或清除侧边栏筛选以查看工作区。",

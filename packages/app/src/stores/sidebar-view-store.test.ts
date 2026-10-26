@@ -32,13 +32,64 @@ function createMemoryStorage(entries: Record<string, string | null>): MemoryStor
 describe("sidebar view store", () => {
   beforeEach(() => {
     useSidebarViewStore.setState({
+      hideAllHosts: false,
+      recency: "all",
       workspaceSort: "created",
+
       showBackground: false,
       groupMode: "project",
       hostFilters: [],
       projectFilters: [],
       labelFilter: { labels: [] },
     });
+  });
+
+  it("clears all sidebar filters together while preserving display preferences", () => {
+    useSidebarViewStore.setState({
+      hideAllHosts: true,
+      hostFilters: ["host-a"],
+      projectFilters: ["project-a"],
+      labelFilter: { labels: ["review"] },
+      recency: "7",
+      groupMode: "status",
+      showBackground: true,
+    });
+    useSidebarViewStore.getState().clearFilters();
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      hideAllHosts: false,
+      hostFilters: [],
+      projectFilters: [],
+      labelFilter: { labels: [] },
+      recency: "all",
+      groupMode: "status",
+      showBackground: true,
+    });
+  });
+
+  it("defaults recent conversations to 24 hours while preserving explicit ranges", () => {
+    expect(migrateSidebarViewState({}).recency).toBe("1");
+    expect(migrateSidebarViewState({ recency: "all" }).recency).toBe("all");
+  });
+
+  it("preserves a selected recency range while migrating older preferences", () => {
+    expect(migrateSidebarViewState({ recency: "7", hostFilters: ["host-a"] })).toMatchObject({
+      recency: "7",
+      hostFilters: ["host-a"],
+    });
+    useSidebarViewStore.getState().setRecency("3");
+    expect(useSidebarViewStore.getState().recency).toBe("3");
+    useSidebarViewStore.getState().setRecency("all");
+    expect(useSidebarViewStore.getState().recency).toBe("all");
+  });
+
+  it("persists an explicit empty host selection and restores all hosts when cleared", () => {
+    expect(migrateSidebarViewState({ hostFilters: [], hideAllHosts: true })).toMatchObject({
+      hostFilters: [],
+      hideAllHosts: true,
+    });
+    useSidebarViewStore.setState({ hostFilters: [], hideAllHosts: true });
+    useSidebarViewStore.getState().clearHostFilters();
+    expect(useSidebarViewStore.getState()).toMatchObject({ hostFilters: [], hideAllHosts: false });
   });
 
   it("toggles multiple hosts into and out of the filter", () => {
@@ -86,7 +137,10 @@ describe("sidebar view store", () => {
         },
       }),
     ).toEqual({
+      hideAllHosts: false,
+      recency: "1",
       workspaceSort: "created",
+
       showBackground: false,
       groupMode: "status",
       hostFilters: [],
@@ -102,7 +156,10 @@ describe("sidebar view store", () => {
         hostFilter: "host-a",
       }),
     ).toEqual({
+      hideAllHosts: false,
+      recency: "1",
       workspaceSort: "created",
+
       showBackground: false,
       groupMode: "status",
       hostFilters: ["host-a"],
@@ -118,7 +175,10 @@ describe("sidebar view store", () => {
         hostFilters: ["host-a", "host-b"],
       }),
     ).toEqual({
+      hideAllHosts: false,
+      recency: "1",
       workspaceSort: "created",
+
       showBackground: false,
       groupMode: "status",
       hostFilters: ["host-a", "host-b"],
@@ -230,7 +290,10 @@ describe("sidebar view store", () => {
         projectFilters: ["project-a", "project-b"],
       }),
     ).toEqual({
+      hideAllHosts: false,
+      recency: "1",
       workspaceSort: "created",
+
       showBackground: false,
       groupMode: "project",
       hostFilters: ["host-a"],
@@ -241,7 +304,10 @@ describe("sidebar view store", () => {
 
   it("never keeps project filters from state the schema rejects", () => {
     expect(migrateSidebarViewState({ projectFilters: "project-a" })).toEqual({
+      hideAllHosts: false,
+      recency: "1",
       workspaceSort: "created",
+
       showBackground: false,
       groupMode: "project",
       hostFilters: [],

@@ -1179,6 +1179,7 @@ export const ja: TranslationResources = {
       done: "完了",
     },
     display: {
+      trailing: "右側の情報",
       showBackground: "バックグラウンドを表示",
       trigger: "表示設定",
       heading: "表示",
@@ -1217,6 +1218,21 @@ export const ja: TranslationResources = {
         icon: "アイコンのみ",
         none: "非表示",
       },
+      recency: {
+        short: {
+          "1": "24時間",
+          "3": "3日",
+          "7": "7日",
+          "30": "30日",
+          all: "すべて",
+        },
+        label: "最近の会話",
+        "1": "過去24時間",
+        "3": "過去3日間",
+        "7": "過去7日間",
+        "30": "過去30日間",
+        all: "すべて",
+      },
       hostFilter: {
         label: "ホスト",
         all: "すべてのホスト",
@@ -1226,6 +1242,7 @@ export const ja: TranslationResources = {
         all: "すべてのプロジェクト",
       },
     },
+    filters: { heading: "ワークスペースを絞り込む", searchProjects: "プロジェクトを検索…" },
     filterEmpty: {
       title: "一致するワークスペースがありません",
       description:

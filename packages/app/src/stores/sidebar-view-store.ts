@@ -6,11 +6,13 @@ import { z } from "zod";
 import { workspaceLabelKey } from "@getpaseo/protocol/workspace-labels";
 import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
 
+export type SidebarRecency = "all" | "1" | "3" | "7" | "30";
+
 export type SidebarGroupMode = "project" | "status";
 
 const SIDEBAR_VIEW_STORAGE_KEY = "sidebar-view";
 const LEGACY_SIDEBAR_GROUP_MODE_STORAGE_KEY = "sidebar-group-mode";
-const SIDEBAR_VIEW_STORE_VERSION = 8;
+const SIDEBAR_VIEW_STORE_VERSION = 9;
 
 /**
  * The key standing for "this workspace carries no labels at all".
@@ -48,10 +50,13 @@ function toggleFilterEntry(list: readonly string[], key: string): string[] {
 
 interface SidebarViewStoreState {
   groupMode: SidebarGroupMode;
+  recency: SidebarRecency;
   workspaceSort: WorkspaceSort;
+
   showBackground: boolean;
-  // Empty means "all hosts". A non-empty list pins the sidebar to those hosts.
+  // Empty means all hosts unless hideAllHosts records an explicit empty selection.
   hostFilters: string[];
+  hideAllHosts: boolean;
   /**
    * Empty means "all projects". A non-empty list is an allowlist over
    * `SidebarProjectEntry.viewKey` — the same key the project sections are built from.
@@ -64,11 +69,13 @@ interface SidebarViewStoreState {
    */
   projectFilters: string[];
   labelFilter: SidebarLabelFilter;
+  setRecency: (recency: SidebarRecency) => void;
   toggleBackground: () => void;
   setGroupMode: (mode: SidebarGroupMode) => void;
   setWorkspaceSort: (sort: WorkspaceSort) => void;
   toggleHostFilter: (serverId: string) => void;
   clearHostFilters: () => void;
+  clearFilters: () => void;
   toggleProjectFilter: (viewKey: string) => void;
   clearProjectFilters: () => void;
   toggleLabelFilter: (name: string) => void;
@@ -79,9 +86,12 @@ interface SidebarViewStoreState {
 
 interface SidebarViewPersistedState {
   groupMode: SidebarGroupMode;
+  recency: SidebarRecency;
   workspaceSort: WorkspaceSort;
+
   showBackground: boolean;
   hostFilters: string[];
+  hideAllHosts: boolean;
   projectFilters: string[];
   labelFilter: SidebarLabelFilter;
 }
@@ -91,10 +101,13 @@ const SidebarLabelFilterSchema = z.object({
   labels: z.array(z.string()),
 });
 const SidebarViewPersistedStateSchema = z.strictObject({
+  recency: z.enum(["all", "1", "3", "7", "30"]).optional(),
   workspaceSort: z.enum(["manual", "created", "lastPrompt"]).optional(),
+
   showBackground: z.boolean().optional(),
   groupMode: PersistedSidebarGroupModeSchema.optional(),
   hostFilters: z.array(z.string()).optional(),
+  hideAllHosts: z.boolean().optional(),
   hostFilter: z.string().nullable().optional(),
   projectFilters: z.array(z.string()).optional(),
   groupModeByServerId: z.record(z.string(), PersistedSidebarGroupModeSchema).optional(),
@@ -131,10 +144,12 @@ export function migrateSidebarViewState(persistedState: unknown): SidebarViewPer
   const result = SidebarViewPersistedStateSchema.safeParse(persistedState);
   if (!result.success) {
     return {
+      recency: "1",
       showBackground: false,
       groupMode: "project",
       workspaceSort: "created",
       hostFilters: [],
+      hideAllHosts: false,
       projectFilters: [],
       labelFilter: emptyLabelFilter(),
     };
@@ -144,20 +159,24 @@ export function migrateSidebarViewState(persistedState: unknown): SidebarViewPer
   const legacyGroupMode = readLegacyGroupMode(state);
   if (legacyGroupMode) {
     return {
+      recency: "1",
       showBackground: false,
       groupMode: legacyGroupMode,
       workspaceSort: "created",
       hostFilters: [],
+      hideAllHosts: false,
       projectFilters: [],
       labelFilter: emptyLabelFilter(),
     };
   }
 
   return {
+    recency: state.recency ?? "1",
     showBackground: state.showBackground ?? false,
     groupMode: state.groupMode === "status" ? "status" : "project",
     workspaceSort: state.workspaceSort ?? "created",
     hostFilters: readHostFilters(state),
+    hideAllHosts: state.hideAllHosts ?? false,
     projectFilters: state.projectFilters ?? [],
     labelFilter: state.labelFilter
       ? normalizeSidebarLabelFilter(state.labelFilter)
@@ -193,18 +212,32 @@ export function createSidebarViewStorage(
 export const useSidebarViewStore = create<SidebarViewStoreState>()(
   persist(
     (set) => ({
+      recency: "1",
       showBackground: false,
       groupMode: "project",
       workspaceSort: "created",
       hostFilters: [],
+      hideAllHosts: false,
       projectFilters: [],
       labelFilter: emptyLabelFilter(),
+      setRecency: (recency) => set({ recency }),
       toggleBackground: () => set((state) => ({ showBackground: !state.showBackground })),
       setGroupMode: (mode) => set({ groupMode: mode }),
       setWorkspaceSort: (workspaceSort) => set({ workspaceSort }),
       toggleHostFilter: (serverId) =>
-        set((state) => ({ hostFilters: toggleFilterEntry(state.hostFilters, serverId) })),
-      clearHostFilters: () => set({ hostFilters: [] }),
+        set((state) => ({
+          hostFilters: toggleFilterEntry(state.hostFilters, serverId),
+          hideAllHosts: false,
+        })),
+      clearHostFilters: () => set({ hostFilters: [], hideAllHosts: false }),
+      clearFilters: () =>
+        set({
+          hostFilters: [],
+          hideAllHosts: false,
+          projectFilters: [],
+          labelFilter: emptyLabelFilter(),
+          recency: "all",
+        }),
       toggleProjectFilter: (viewKey) =>
         set((state) => ({ projectFilters: toggleFilterEntry(state.projectFilters, viewKey) })),
       clearProjectFilters: () => set({ projectFilters: [] }),
@@ -247,10 +280,12 @@ export const useSidebarViewStore = create<SidebarViewStoreState>()(
         SidebarViewPersistedStateSchema,
       ),
       partialize: (state) => ({
+        recency: state.recency ?? "1",
         showBackground: state.showBackground ?? false,
         groupMode: state.groupMode,
         workspaceSort: state.workspaceSort,
         hostFilters: state.hostFilters,
+        hideAllHosts: state.hideAllHosts,
         projectFilters: state.projectFilters,
         labelFilter: state.labelFilter,
       }),

@@ -106,11 +106,14 @@ export function useSidebarWorkspacesList(options?: {
   const allServerIds = useMemo(() => allHosts.map((h) => h.serverId), [allHosts]);
 
   const storeHostFilters = useSidebarViewStore((state) => state.hostFilters);
+  const storeHideAllHosts = useSidebarViewStore((state) => state.hideAllHosts);
+  const hideAllHosts = options?.hostFilters === undefined && storeHideAllHosts;
   const hostFilters = options?.hostFilters ?? storeHostFilters;
   const reconcileHostFilters = useSidebarViewStore((state) => state.reconcileHostFilters);
   const isActive = options?.enabled !== false;
 
   const serverIds = useMemo(() => {
+    if (hideAllHosts) return [];
     if (hostFilters.length === 0) {
       return allServerIds;
     }
@@ -122,7 +125,7 @@ export function useSidebarWorkspacesList(options?: {
       return allServerIds;
     }
     return matched;
-  }, [allServerIds, hostFilters, hostRegistryLoaded]);
+  }, [allServerIds, hostFilters, hostRegistryLoaded, hideAllHosts]);
   useEffect(() => {
     if (!isActive) return;
     const releases = serverIds.map((serverId) => runtime.acquireDirectoryDemand(serverId));

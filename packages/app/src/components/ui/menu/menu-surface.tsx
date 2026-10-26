@@ -115,6 +115,8 @@ export interface MenuSurfaceProps {
   align?: Alignment;
   offset?: number;
   width?: number;
+  /** Shadow depth for the anchored popover; compact sheets use their own presentation. */
+  shadow?: "md" | "popover";
   minWidth?: number;
   maxWidth?: number;
   maxHeight?: number;
@@ -217,6 +219,7 @@ function MenuPopoverSurface({
   align = "start",
   offset = 4,
   width,
+  shadow,
   minWidth = 180,
   maxWidth,
   maxHeight,
@@ -273,6 +276,7 @@ function MenuPopoverSurface({
             align={align}
             offset={offset}
             width={width}
+            shadow={shadow}
             minWidth={minWidth}
             maxWidth={maxWidth}
             maxHeight={maxHeight}

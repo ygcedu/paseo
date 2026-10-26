@@ -1195,6 +1195,7 @@ export const fr: TranslationResources = {
       done: "Terminé",
     },
     display: {
+      trailing: "Côté droit",
       showBackground: "Afficher les espaces en arrière-plan",
       trigger: "Préférences d’affichage",
       heading: "Affichage",
@@ -1233,6 +1234,21 @@ export const fr: TranslationResources = {
         icon: "Icône seule",
         none: "Masqué",
       },
+      recency: {
+        short: {
+          "1": "24 h",
+          "3": "3 j",
+          "7": "7 j",
+          "30": "30 j",
+          all: "Tout",
+        },
+        label: "Conversations récentes",
+        "1": "Dernières 24 heures",
+        "3": "3 derniers jours",
+        "7": "7 derniers jours",
+        "30": "30 derniers jours",
+        all: "Toutes",
+      },
       hostFilter: {
         label: "Hôte",
         all: "Tous les hôtes",
@@ -1241,6 +1257,10 @@ export const fr: TranslationResources = {
         label: "Projet",
         all: "Tous les projets",
       },
+    },
+    filters: {
+      heading: "Filtrer les espaces de travail",
+      searchProjects: "Rechercher des projets…",
     },
     filterEmpty: {
       title: "Aucun espace de travail ne correspond",

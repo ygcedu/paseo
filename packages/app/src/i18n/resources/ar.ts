@@ -1166,6 +1166,7 @@ export const ar: TranslationResources = {
       done: "تم",
     },
     display: {
+      trailing: "الجانب الأيمن",
       showBackground: "إظهار مساحات العمل في الخلفية",
       trigger: "تفضيلات العرض",
       heading: "العرض",
@@ -1204,6 +1205,21 @@ export const ar: TranslationResources = {
         icon: "أيقونة فقط",
         none: "مخفي",
       },
+      recency: {
+        short: {
+          "1": "24 س",
+          "3": "3 أيام",
+          "7": "7 أيام",
+          "30": "30 يومًا",
+          all: "الكل",
+        },
+        label: "المحادثات الأخيرة",
+        "1": "آخر 24 ساعة",
+        "3": "آخر 3 أيام",
+        "7": "آخر 7 أيام",
+        "30": "آخر 30 يومًا",
+        all: "الكل",
+      },
       hostFilter: {
         label: "المضيف",
         all: "كل المضيفين",
@@ -1213,6 +1229,7 @@ export const ar: TranslationResources = {
         all: "كل المشاريع",
       },
     },
+    filters: { heading: "تصفية مساحات العمل", searchProjects: "البحث عن المشاريع…" },
     filterEmpty: {
       title: "لا توجد مساحات عمل مطابقة",
       description: "غيّر عوامل تصفية الشريط الجانبي أو امسحها لعرض مساحات العمل.",

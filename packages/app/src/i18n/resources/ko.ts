@@ -1173,6 +1173,7 @@ export const ko: TranslationResources = {
       done: "완료",
     },
     display: {
+      trailing: "오른쪽 정보",
       showBackground: "백그라운드 표시",
       trigger: "표시 설정",
       heading: "표시",
@@ -1211,6 +1212,21 @@ export const ko: TranslationResources = {
         icon: "아이콘만",
         none: "숨김",
       },
+      recency: {
+        short: {
+          "1": "24시간",
+          "3": "3일",
+          "7": "7일",
+          "30": "30일",
+          all: "전체",
+        },
+        label: "최근 대화",
+        "1": "지난 24시간",
+        "3": "지난 3일",
+        "7": "지난 7일",
+        "30": "지난 30일",
+        all: "전체",
+      },
       hostFilter: {
         label: "호스트",
         all: "모든 호스트",
@@ -1220,6 +1236,7 @@ export const ko: TranslationResources = {
         all: "모든 프로젝트",
       },
     },
+    filters: { heading: "워크스페이스 필터", searchProjects: "프로젝트 검색…" },
     filterEmpty: {
       title: "일치하는 워크스페이스가 없습니다",
       description: "워크스페이스를 보려면 사이드바 필터를 변경하거나 지우세요.",

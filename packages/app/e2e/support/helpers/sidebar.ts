@@ -198,17 +198,17 @@ export async function expectWorkspaceAbsentFromSidebar(
   ).toHaveCount(0, { timeout: 30_000 });
 }
 
-// The display-preferences menu is one row per decision, and the options sit a page below that
-// row. Every caller has to walk the same path, so it lives here: when the menu's shape moves
-// again, this is the only place that has to follow.
 export async function openSidebarDisplayPage(page: Page, branchTestID: string): Promise<void> {
   await page.getByTestId("sidebar-display-preferences-menu").click();
-  await page.getByTestId(branchTestID).click();
+  await expect(page.getByTestId(branchTestID)).toBeVisible();
 }
 
-// Project filters live a page below the display-preferences root, like the host filters.
 export async function openSidebarProjectFilter(page: Page): Promise<void> {
-  await openSidebarDisplayPage(page, "sidebar-display-project-filter");
+  if (!(await page.getByTestId("sidebar-filters-content").isVisible())) {
+    await page.getByTestId("sidebar-filters-trigger").click();
+  }
+  await expect(page.getByTestId("sidebar-filter-project")).toBeVisible();
+  await expect(page.getByTestId("sidebar-filters-content")).toBeVisible();
 }
 
 // The filter rows are keyed by the project's sidebar view key. A project seeded from its own temp
@@ -225,6 +225,10 @@ export async function selectAllProjectsFilter(page: Page): Promise<void> {
 export async function closeSidebarDisplayPreferences(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("sidebar-display-preferences-content")).toHaveCount(0);
+  if (await page.getByTestId("sidebar-filters-content").isVisible()) {
+    await page.getByTestId("sidebar-filters-trigger").click();
+  }
+  await expect(page.getByTestId("sidebar-filters-content")).toHaveCount(0);
 }
 
 export async function selectSidebarStatusGrouping(page: Page): Promise<void> {

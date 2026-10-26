@@ -1,3 +1,5 @@
+import { SidebarSectionHeader } from "@/components/sidebar/sidebar-section-header";
+import { SidebarQuickFilters } from "@/components/sidebar/quick-filters";
 import { router } from "expo-router";
 import {
   CircleGauge,
@@ -29,14 +31,12 @@ import {
   SIDEBAR_RESIZE_FAIL_OFFSET,
 } from "@/components/sidebar-resize-handle-layout";
 import { HostPicker } from "@/components/hosts/host-picker";
-import { SidebarDisplayPreferencesMenu } from "@/components/sidebar/display-preferences/menu";
 import { SidebarSeparator } from "@/components/sidebar/sidebar-separator";
 import { SidebarNavRows } from "@/components/sidebar/sidebar-nav-rows";
 import { SidebarFooterIconHighlight } from "@/components/sidebar/sidebar-footer-icon-highlight";
 import { SidebarHelpMenu } from "@/components/sidebar/sidebar-help-menu";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
 import { DensityIcon } from "@/components/ui/density-icon";
-import { SidebarSectionHeader } from "@/components/sidebar/sidebar-section-header";
 import { Shortcut } from "@/components/ui/shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HEADER_INNER_HEIGHT, useIsCompactFormFactor } from "@/constants/layout";
@@ -432,6 +432,7 @@ function SidebarFooter({
   return (
     <UsageSidebarRoot>
       <View style={styles.footerContainer} testID="sidebar-footer">
+        <SidebarQuickFilters />
         <SidebarFooterRows onBeforeNavigate={onBeforeNavigate} />
         <View style={styles.sidebarFooter} testID="sidebar-footer-bottom-line">
           <FooterIconButton
@@ -536,7 +537,9 @@ function MobileSidebar({
   insetsBottom,
   closeSidebar,
 }: MobileSidebarProps) {
-  const hasActiveHostFilter = useSidebarViewStore((state) => state.hostFilters.length > 0);
+  const hasActiveHostFilter = useSidebarViewStore(
+    (state) => state.hideAllHosts || state.hostFilters.length > 0,
+  );
   const { gesture: closeGesture, gestureRef: closeGestureRef } = useCloseAgentListGesture();
 
   const handleWorkspacePress = useCallback(() => {
@@ -645,7 +648,9 @@ function DesktopSidebar({
   active,
 }: DesktopSidebarProps) {
   const ownsTopLeft = useOwnsWindowChromeCorner("top-left");
-  const hasActiveHostFilter = useSidebarViewStore((state) => state.hostFilters.length > 0);
+  const hasActiveHostFilter = useSidebarViewStore(
+    (state) => state.hideAllHosts || state.hostFilters.length > 0,
+  );
   const sidebarWidth = usePanelStore((state) => state.sidebarWidth);
   const setSidebarWidth = usePanelStore((state) => state.setSidebarWidth);
   const { width: windowWidth } = useWindowDimensions();
@@ -806,20 +811,7 @@ function DesktopSidebar({
 }
 
 function WorkspacesSectionHeader() {
-  return (
-    <SidebarSectionHeader title="Workspaces">
-      <Tooltip delayDuration={300}>
-        <TooltipTrigger asChild>
-          <View>
-            <SidebarDisplayPreferencesMenu />
-          </View>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="center" offset={8}>
-          <IconTooltipContent label="Display preferences" />
-        </TooltipContent>
-      </Tooltip>
-    </SidebarSectionHeader>
-  );
+  return <SidebarSectionHeader title="Workspaces" />;
 }
 
 // Stable element so the sidebar list's listHeaderComponent prop keeps identity across
@@ -840,10 +832,11 @@ const staticStyles = RNStyleSheet.create({
 
 const styles = StyleSheet.create((theme) => ({
   sidebarHeaderGroup: {
+    backgroundColor: theme.colors.surface1,
     paddingTop: theme.spacing[2],
     gap: 2,
     paddingBottom: theme.spacing[1.5],
-    borderBottomWidth: 1,
+    borderBottomWidth: RNStyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
   },
   sidebarHeaderGroupBelowChrome: {
@@ -863,6 +856,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   sidebarDragArea: {
     position: "relative",
+    backgroundColor: theme.colors.surface1,
   },
   desktopChromeRow: {
     position: "relative",
@@ -892,7 +886,8 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: theme.fontWeight.medium,
   },
   footerContainer: {
-    borderTopWidth: 1,
+    backgroundColor: theme.colors.surface1,
+    borderTopWidth: RNStyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
   },
   // Buttons sit edge to edge; their own inset spaces the glyphs.
@@ -909,7 +904,8 @@ const styles = StyleSheet.create((theme) => ({
   // Usage and plugin rows sit above the footer's icon line, spaced like the header nav rows.
   footerRows: {
     paddingHorizontal: theme.spacing[2],
-    paddingVertical: theme.spacing[1.5],
+    paddingTop: theme.spacing[1],
+    paddingBottom: theme.spacing[1.5],
     gap: 2,
   },
   footerIconButton: {

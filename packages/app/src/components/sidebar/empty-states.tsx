@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode } from "react";
 import { Import, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
@@ -38,15 +38,7 @@ function SidebarEmptyStateCard({
  */
 export function SidebarFilterEmptyState() {
   const { t } = useTranslation();
-  const clearLabelFilter = useSidebarViewStore((state) => state.clearLabelFilter);
-  const clearProjectFilters = useSidebarViewStore((state) => state.clearProjectFilters);
-  // Clears every filter that can empty the list, not just the one that did. The card names no
-  // filter, so a Clear that undid only one of two active filters would leave it on screen looking
-  // like it had failed.
-  const clearFilters = useCallback(() => {
-    clearLabelFilter();
-    clearProjectFilters();
-  }, [clearLabelFilter, clearProjectFilters]);
+  const clearFilters = useSidebarViewStore((state) => state.clearFilters);
 
   return (
     <SidebarEmptyStateCard

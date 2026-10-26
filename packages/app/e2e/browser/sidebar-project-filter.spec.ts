@@ -16,42 +16,46 @@ test.describe("Sidebar project filter", () => {
   test.describe.configure({ timeout: 180_000 });
 
   test("pins the sidebar to one project across both grouping modes", async ({ page }) => {
-    // Two temp repos means two projects, which is also what makes the `Project ›` row appear.
+    // Two repos expose the project filter alongside the recency filter.
     const alpha = await seedWorkspace({ repoPrefix: "project-filter-alpha-", title: "Alpha work" });
     const beta = await seedWorkspace({ repoPrefix: "project-filter-beta-", title: "Beta work" });
     const serverId = getServerId();
     const alphaRow = page.getByTestId(`sidebar-workspace-row-${serverId}:${alpha.workspaceId}`);
     const betaRow = page.getByTestId(`sidebar-workspace-row-${serverId}:${beta.workspaceId}`);
-    const filterTrigger = page.getByTestId("sidebar-display-project-filter");
 
     try {
       await gotoAppShell(page);
+      await page.getByTestId("sidebar-filters-trigger").click();
+      await page.getByTestId("sidebar-recency-filter-all").click();
+      await page.getByTestId("sidebar-filters-trigger").click();
       await expect(alphaRow).toBeVisible({ timeout: 30_000 });
       await expect(betaRow).toBeVisible({ timeout: 30_000 });
+      const footer = page.getByTestId("sidebar-footer");
+      await expect(footer.getByTestId("sidebar-filters-trigger")).toBeVisible();
+      await expect(footer.getByTestId("sidebar-display-preferences-menu")).toBeVisible();
+      await expect(page.getByTestId("sidebar-filters-content")).toHaveCount(0);
 
-      await page.getByTestId("sidebar-display-preferences-menu").click();
-      await expect(page.getByRole("menuitem")).toHaveText([
-        /^Grouping/,
-        /^Sort/,
-        /^Title/,
-        "Show",
-        "Project",
-        "Show background",
-      ]);
-      await closeSidebarDisplayPreferences(page);
-
+      await page.getByTestId("sidebar-filters-trigger").click();
+      await expect(page.getByTestId("sidebar-recency-1")).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath("sidebar-filter-recency.png") });
       await openSidebarProjectFilter(page);
+      await expect(page.getByTestId("sidebar-recency-1")).toBeVisible();
+      await expect(
+        page.getByTestId(`sidebar-project-filter-${alpha.projectKey}-icon`),
+      ).toBeVisible();
       await expect(page.getByTestId("sidebar-project-filter-all")).toBeVisible();
+      await expect(page.getByTestId(`sidebar-project-filter-${beta.projectKey}`)).toBeVisible();
       await toggleProjectFilter(page, alpha.projectKey);
       await closeSidebarDisplayPreferences(page);
 
       await expect(alphaRow).toBeVisible();
       await expect(betaRow).toHaveCount(0, { timeout: 10_000 });
 
-      // The indicator reads the filter as it is applied, so it must be on here.
-      await page.getByTestId("sidebar-display-preferences-menu").click();
-      await expect(filterTrigger).toBeVisible();
-      await expect(filterTrigger.getByTestId("menu-sub-indicator")).toBeVisible();
+      // Collapsing preserves the filter without showing its selected values.
+      await expect(page.getByTestId("sidebar-filter-summary")).toHaveCount(0);
+      await page.screenshot({ path: test.info().outputPath("sidebar-filter-summary.png") });
+      await openSidebarProjectFilter(page);
+      await page.screenshot({ path: test.info().outputPath("sidebar-filter-panel.png") });
       await closeSidebarDisplayPreferences(page);
 
       // Status grouping builds its rows from the workspace entries rather than the projects
@@ -95,6 +99,9 @@ test.describe("Sidebar project filter", () => {
 
     try {
       await gotoAppShell(page);
+      await page.getByTestId("sidebar-filters-trigger").click();
+      await page.getByTestId("sidebar-recency-filter-all").click();
+      await page.getByTestId("sidebar-filters-trigger").click();
       await expect(alphaRow).toBeVisible({ timeout: 30_000 });
 
       await openSidebarProjectFilter(page);
@@ -124,13 +131,15 @@ test.describe("Sidebar project filter", () => {
 
     try {
       await gotoAppShell(page);
+      await page.getByTestId("sidebar-filters-trigger").click();
+      await page.getByTestId("sidebar-recency-filter-all").click();
+      await page.getByTestId("sidebar-filters-trigger").click();
       await expect(
         page.getByTestId(`sidebar-workspace-row-${serverId}:${only.workspaceId}`),
       ).toBeVisible({ timeout: 30_000 });
 
-      await page.getByTestId("sidebar-display-preferences-menu").click();
-      await expect(page.getByTestId("sidebar-display-preferences-content")).toBeVisible();
-      await expect(page.getByTestId("sidebar-display-project-filter")).toHaveCount(0);
+      await page.getByTestId("sidebar-filters-trigger").click();
+      await expect(page.getByTestId("sidebar-filter-project")).toHaveCount(0);
     } finally {
       await only.cleanup();
     }

@@ -32,6 +32,7 @@ export interface SidebarDisplayPreferences {
   trailing: SidebarWorkspaceTrailing;
   /** Picking the choice that is already showing clears the slot. */
   toggleTrailing: (choice: SidebarTrailingChoice) => void;
+  hideAllHosts: boolean;
   hostFilters: readonly string[];
   toggleHostFilter: (serverId: string) => void;
   clearHostFilters: () => void;
@@ -59,6 +60,7 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
   const setWorkspaceSort = useSidebarViewStore((state) => state.setWorkspaceSort);
   const grouping = useSidebarViewStore((state) => state.groupMode);
   const setGrouping = useSidebarViewStore((state) => state.setGroupMode);
+  const hideAllHosts = useSidebarViewStore((state) => state.hideAllHosts);
   const hostFilters = useSidebarViewStore((state) => state.hostFilters);
   const toggleHostFilter = useSidebarViewStore((state) => state.toggleHostFilter);
   const clearHostFilters = useSidebarViewStore((state) => state.clearHostFilters);
@@ -127,6 +129,7 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setChecksDisplay,
       trailing: sidebarWorkspaceTrailing,
       toggleTrailing,
+      hideAllHosts,
       hostFilters,
       toggleHostFilter,
       clearHostFilters,
@@ -152,6 +155,7 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setChecksDisplay,
       sidebarWorkspaceTrailing,
       toggleTrailing,
+      hideAllHosts,
       hostFilters,
       toggleHostFilter,
       clearHostFilters,

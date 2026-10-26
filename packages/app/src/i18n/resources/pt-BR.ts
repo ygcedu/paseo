@@ -1192,6 +1192,7 @@ export const ptBR: TranslationResources = {
       done: "Concluído",
     },
     display: {
+      trailing: "Lado direito",
       showBackground: "Mostrar espaços em segundo plano",
       trigger: "Preferências de exibição",
       heading: "Exibição",
@@ -1230,6 +1231,21 @@ export const ptBR: TranslationResources = {
         icon: "Somente ícone",
         none: "Oculto",
       },
+      recency: {
+        short: {
+          "1": "24 h",
+          "3": "3 d",
+          "7": "7 d",
+          "30": "30 d",
+          all: "Todas",
+        },
+        label: "Conversas recentes",
+        "1": "Últimas 24 horas",
+        "3": "Últimos 3 dias",
+        "7": "Últimos 7 dias",
+        "30": "Últimos 30 dias",
+        all: "Todas",
+      },
       hostFilter: {
         label: "Host",
         all: "Todos os hosts",
@@ -1239,6 +1255,7 @@ export const ptBR: TranslationResources = {
         all: "Todos os projetos",
       },
     },
+    filters: { heading: "Filtrar espaços de trabalho", searchProjects: "Buscar projetos…" },
     filterEmpty: {
       title: "Nenhum espaço de trabalho corresponde",
       description: "Altere ou limpe os filtros da barra lateral para ver espaços de trabalho.",

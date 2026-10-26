@@ -130,11 +130,11 @@ export async function openSidebarDisplayPreferences(page: Page): Promise<void> {
   });
 }
 
-// Host filters live a page below the display-preferences root, so the filter rows only exist
-// after walking into that branch.
 export async function openSidebarHostFilter(page: Page): Promise<void> {
-  await openSidebarDisplayPreferences(page);
-  await page.getByTestId("sidebar-display-host-filter").click();
+  if (!(await page.getByTestId("sidebar-filters-content").isVisible())) {
+    await page.getByTestId("sidebar-filters-trigger").click();
+  }
+  await page.getByTestId("sidebar-filter-host").click();
 }
 
 // A host's filter row carries a status dot on the left next to its label.
