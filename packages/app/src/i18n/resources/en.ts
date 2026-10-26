@@ -752,6 +752,10 @@ export const en = {
     },
     scripts: {
       title: "Scripts",
+      groups: {
+        running: "Running · {{count}}",
+        available: "Available · {{count}}",
+      },
       actions: {
         chooseUrl: "Choose URL",
         copyUrl: "Copy URL",

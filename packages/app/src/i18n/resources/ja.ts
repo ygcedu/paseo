@@ -761,6 +761,10 @@ export const ja: TranslationResources = {
     },
     scripts: {
       title: "スクリプト",
+      groups: {
+        running: "実行中 · {{count}}",
+        available: "実行可能 · {{count}}",
+      },
       actions: {
         chooseUrl: "URLを選択",
         copyUrl: "URLをコピー",

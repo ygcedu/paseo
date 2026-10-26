@@ -765,6 +765,10 @@ export const ru: TranslationResources = {
     },
     scripts: {
       title: "Скрипты",
+      groups: {
+        running: "Запущены · {{count}}",
+        available: "Доступны · {{count}}",
+      },
       actions: {
         chooseUrl: "Выбрать URL",
         copyUrl: "Скопировать URL",

@@ -46,6 +46,9 @@ test("scripts menu resizes when a service row grows after launch", async ({ page
 
     await page.goto(buildHostWorkspaceRoute(getServerId(), workspace.id));
     await waitForWorkspaceTabsVisible(page);
+    await page.getByTestId("tool-window-add-bottom").click();
+    await page.getByTestId("tool-window-add-bottom-terminal").click();
+    await expect(page.getByTestId("terminal-session-tabs").getByRole("tab")).toHaveCount(1);
     await openWorkspaceScriptsMenu(page);
 
     const menu = page.getByTestId("workspace-scripts-menu");
@@ -60,6 +63,8 @@ test("scripts menu resizes when a service row grows after launch", async ({ page
 
     await startWorkspaceScriptFromMenu(page, "web");
     await expect(menu).toContainText("localhost:", { timeout: 15_000 });
+    await expect(page.getByTestId("terminal-session-tabs").getByRole("tab")).toHaveCount(2);
+    await expect(page.locator('[data-testid^="tool-window-icon-terminal_"]')).toHaveCount(1);
 
     const after = await menu.evaluate((element) => {
       const rect = element.getBoundingClientRect();

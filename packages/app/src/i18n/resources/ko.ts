@@ -757,6 +757,10 @@ export const ko: TranslationResources = {
     },
     scripts: {
       title: "스크립트",
+      groups: {
+        running: "실행 중 · {{count}}",
+        available: "실행 가능 · {{count}}",
+      },
       actions: {
         chooseUrl: "URL를 선택하세요",
         copyUrl: "URL 복사",

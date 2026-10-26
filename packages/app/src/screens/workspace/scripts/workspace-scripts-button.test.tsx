@@ -144,6 +144,7 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuContent: ({ children, testID }: { children: React.ReactNode; testID?: string }) => (
     <div data-testid={testID}>{children}</div>
   ),
+  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuSeparator: () => <div role="separator" />,
   DropdownMenuItem: ({
     children,
@@ -334,6 +335,59 @@ describe("WorkspaceScriptsButton", () => {
     vi.unstubAllGlobals();
   });
 
+  it("selects a command without running it and controls it from the toolbar", async () => {
+    const dev = script({ scriptName: "dev", lifecycle: "running", terminalId: "terminal-dev" });
+    const build = script({ scriptName: "build" });
+    current = renderScripts([build, dev], { hideLabels: true });
+    const trigger = document.querySelector('[data-testid="workspace-scripts-button"]');
+    expect(trigger?.textContent).toBe("dev");
+    const select = document.querySelector('[data-testid="workspace-scripts-select-build"]');
+    if (!(select instanceof HTMLElement)) throw new Error("Missing selection");
+    fireEvent.click(select);
+    expect(trigger?.textContent).toBe("build");
+    expect(startWorkspaceScriptMock).not.toHaveBeenCalled();
+    const run = document.querySelector('[data-testid="workspace-scripts-toolbar-start"]');
+    if (!(run instanceof HTMLElement)) throw new Error("Missing toolbar run");
+    await act(async () => {
+      fireEvent.click(run);
+    });
+    expect(startWorkspaceScriptMock).toHaveBeenCalledWith("workspace-1", "build");
+    await current.rerender([
+      dev,
+      script({ scriptName: "build", lifecycle: "running", terminalId: "terminal-build" }),
+    ]);
+    expect(trigger?.textContent).toBe("build");
+    expect(document.querySelector('[data-testid="workspace-scripts-toolbar-start"]')).toBeNull();
+    expect(
+      document.querySelector('[data-testid="workspace-scripts-toolbar-restart"]'),
+    ).not.toBeNull();
+    const stop = document.querySelector('[data-testid="workspace-scripts-toolbar-stop"]');
+    if (!(stop instanceof HTMLElement)) throw new Error("Missing toolbar stop");
+    await act(async () => {
+      fireEvent.click(stop);
+    });
+    expect(killTerminalMock).toHaveBeenCalledWith("terminal-build");
+    await current.rerender([dev]);
+    expect(trigger?.textContent).toBe("dev");
+  });
+
+  it("groups running scripts first without duplicating commands", () => {
+    current = renderScripts([
+      script({ scriptName: "build", lifecycle: "stopped" }),
+      script({ scriptName: "dev", lifecycle: "running" }),
+      script({ scriptName: "check", lifecycle: "stopped" }),
+    ]);
+    const menu = document.querySelector('[data-testid="workspace-scripts-menu"]');
+    expect(menu?.textContent).toContain("Running · 1");
+    expect(menu?.textContent).toContain("Available · 2");
+    const rows = menu?.querySelectorAll('[data-testid^="workspace-scripts-item-"]');
+    expect(Array.from(rows ?? []).map((row) => row.getAttribute("data-testid"))).toEqual([
+      "workspace-scripts-item-dev",
+      "workspace-scripts-item-build",
+      "workspace-scripts-item-check",
+    ]);
+  });
+
   it("keeps completed script row icons visible and muted while the menu content stays mounted", async () => {
     current = renderScripts([
       script({
@@ -417,9 +471,7 @@ describe("WorkspaceScriptsButton", () => {
       }),
     ]);
 
-    expect(requirePrimaryIcon(requireRow("web")).dataset.color).toBe(
-      theme.colors.palette.green[500],
-    );
+    expect(requirePrimaryIcon(requireRow("web")).dataset.color).toBe("#5fad65");
     expect(requirePrimaryIcon(requireRow("api")).dataset.color).toBe(theme.colors.palette.red[500]);
     expect(requirePrimaryIcon(requireRow("worker")).dataset.color).toBe(
       theme.colors.palette.blue[500],
@@ -518,9 +570,11 @@ describe("WorkspaceScriptsButton", () => {
     ]);
 
     let row = requireRow("dev");
-    let buttons = Array.from(row.querySelectorAll("button"));
+    let buttons = Array.from(
+      row.querySelectorAll('button:not([data-testid^="workspace-scripts-select-"])'),
+    );
     expect(buttons).toHaveLength(1);
-    expect(buttons.at(-1)?.dataset.testid).toBe("workspace-scripts-start-dev");
+    expect(buttons.at(-1)?.getAttribute("data-testid")).toBe("workspace-scripts-start-dev");
     expect(buttons.at(-1)?.querySelector('[data-icon="Play"]')).not.toBeNull();
     expect(buttons.at(-1)?.textContent).toBe("");
 
@@ -533,8 +587,10 @@ describe("WorkspaceScriptsButton", () => {
     ]);
 
     row = requireRow("dev");
-    buttons = Array.from(row.querySelectorAll("button"));
-    expect(buttons.map((button) => button.dataset.testid)).toEqual([
+    buttons = Array.from(
+      row.querySelectorAll('button:not([data-testid^="workspace-scripts-select-"])'),
+    );
+    expect(buttons.map((button) => button.getAttribute("data-testid"))).toEqual([
       "workspace-scripts-view-dev",
       "workspace-scripts-restart-dev",
       "workspace-scripts-stop-dev",
@@ -582,8 +638,8 @@ describe("WorkspaceScriptsButton", () => {
       }),
     ]);
 
-    const restartButton = requireRow("dev").querySelector(
-      '[data-testid="workspace-scripts-restart-dev"]',
+    const restartButton = document.querySelector(
+      '[data-testid="workspace-scripts-toolbar-restart"]',
     );
     expect(restartButton).not.toBeNull();
     fireEvent.click(restartButton as HTMLElement);

@@ -765,6 +765,10 @@ export const es: TranslationResources = {
     },
     scripts: {
       title: "Scripts",
+      groups: {
+        running: "En ejecución · {{count}}",
+        available: "Disponibles · {{count}}",
+      },
       actions: {
         chooseUrl: "Elegir URL",
         copyUrl: "Copiar URL",

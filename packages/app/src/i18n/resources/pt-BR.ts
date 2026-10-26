@@ -761,6 +761,10 @@ export const ptBR: TranslationResources = {
     },
     scripts: {
       title: "Scripts",
+      groups: {
+        running: "Em execução · {{count}}",
+        available: "Disponíveis · {{count}}",
+      },
       actions: {
         chooseUrl: "Escolher URL",
         copyUrl: "Copiar URL",

@@ -753,6 +753,10 @@ export const zhCN: TranslationResources = {
     },
     scripts: {
       title: "Scripts",
+      groups: {
+        running: "运行中 · {{count}}",
+        available: "可运行 · {{count}}",
+      },
       actions: {
         chooseUrl: "选择 URL",
         copyUrl: "复制 URL",

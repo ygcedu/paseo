@@ -757,6 +757,10 @@ export const ar: TranslationResources = {
     },
     scripts: {
       title: "البرامج النصية",
+      groups: {
+        running: "قيد التشغيل · {{count}}",
+        available: "متاح · {{count}}",
+      },
       actions: {
         chooseUrl: "اختيار الرابط",
         copyUrl: "نسخ الرابط",
