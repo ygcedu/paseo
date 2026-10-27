@@ -123,6 +123,7 @@ and updating `next`, integrating it after a release, and releasing a hotfix from
 
 ## Critical rules
 
+- **Git 提交标题使用英文分类前缀（如 `feat:`、`fix:`、`docs:`），前缀后的描述及提交正文必须使用中文。**
 - **NEVER restart the main Paseo daemon on port 6767 without permission** — it manages all running agents. If you're an agent, restarting it kills your own process.
 - **NEVER assume a timeout means the service needs restarting** — timeouts can be transient.
 - **NEVER add auth checks to tests** — agent providers handle their own auth.
