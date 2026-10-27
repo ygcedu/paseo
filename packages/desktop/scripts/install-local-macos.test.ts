@@ -13,7 +13,7 @@ function fixture() {
   roots.push(root);
   const stage = path.join(root, "staging", "Paseo.app");
   const target = path.join(root, "Applications", "Paseo.app");
-  const backup = `${target}.previous`;
+  const backup = `${target}.previous-20261027-120000-1`;
   const job = path.join(root, "job");
   const lock = path.join(root, "lock");
   const bin = path.join(root, "bin");
@@ -41,16 +41,22 @@ afterEach(() => {
 
 test("installs a staged bundle, keeps the old version, reopens, and releases the lock", () => {
   const f = fixture();
+  writeFileSync(path.join(f.root, "last-install-error.log"), "previous error");
   execFileSync("bash", f.args, { env: f.env });
   expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("new");
   expect(readFileSync(path.join(f.backup, "version"), "utf8")).toBe("old");
-  expect(readFileSync(path.join(f.job, "status"), "utf8")).toBe("SUCCESS\n");
+  expect(existsSync(f.job)).toBe(false);
+  expect(existsSync(path.dirname(f.stage))).toBe(false);
   expect(readFileSync(f.env.OPEN_RECORD, "utf8")).toBe(f.target);
   expect(existsSync(f.lock)).toBe(false);
+  expect(existsSync(path.join(f.root, "last-install-error.log"))).toBe(false);
 });
 
 test("restores the previous bundle when moving the new bundle fails", () => {
   const f = fixture();
+  const olderBackup = `${f.target}.previous-20261026-120000-1`;
+  mkdirSync(olderBackup);
+  writeFileSync(path.join(olderBackup, "version"), "older");
   writeFileSync(
     path.join(f.bin, "mv"),
     '#!/bin/sh\nif [ "$1" = "$FAIL_SOURCE" ]; then exit 1; fi\nexec /bin/mv "$@"\n',
@@ -59,9 +65,59 @@ test("restores the previous bundle when moving the new bundle fails", () => {
   const result = spawnSync("bash", f.args, { env: { ...f.env, FAIL_SOURCE: f.stage } });
   expect(result.status).toBe(1);
   expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("old");
-  expect(readFileSync(path.join(f.job, "status"), "utf8")).toContain("FAILED");
+  expect(readFileSync(path.join(f.root, "last-install-error.log"), "utf8")).toContain("FAILED");
+  expect(existsSync(f.job)).toBe(false);
   expect(existsSync(f.env.OPEN_RECORD)).toBe(false);
   expect(existsSync(f.lock)).toBe(false);
+  expect(readFileSync(path.join(olderBackup, "version"), "utf8")).toBe("older");
+});
+
+test("removes older timestamped backups while retaining the current backup and unrelated paths", () => {
+  const f = fixture();
+  const olderBackup = `${f.target}.previous-20261026-120000-1`;
+  const unrelated = `${f.target}.previous-manual`;
+  const ordinaryFile = `${f.target}.previous-20261025-note`;
+  mkdirSync(olderBackup);
+  mkdirSync(unrelated);
+  writeFileSync(ordinaryFile, "keep");
+  execFileSync("bash", f.args, { env: f.env });
+  expect(existsSync(olderBackup)).toBe(false);
+  expect(readFileSync(path.join(f.backup, "version"), "utf8")).toBe("old");
+  expect(existsSync(unrelated)).toBe(true);
+  expect(readFileSync(ordinaryFile, "utf8")).toBe("keep");
+});
+
+test("keeps older backups when reopening the installed application fails", () => {
+  const f = fixture();
+  const olderBackup = `${f.target}.previous-20261026-120000-1`;
+  mkdirSync(olderBackup);
+  writeFileSync(path.join(olderBackup, "version"), "older");
+  writeFileSync(path.join(f.bin, "open"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const result = spawnSync("bash", f.args, { env: f.env });
+  expect(result.status).toBe(1);
+  expect(readFileSync(path.join(olderBackup, "version"), "utf8")).toBe("older");
+  expect(readFileSync(path.join(f.backup, "version"), "utf8")).toBe("old");
+  expect(existsSync(f.job)).toBe(false);
+  expect(existsSync(f.lock)).toBe(false);
+});
+
+test("preserves recovery bundles but removes task files when rollback fails", () => {
+  const f = fixture();
+  writeFileSync(
+    path.join(f.bin, "mv"),
+    '#!/bin/sh\ncase "$1" in "$FAIL_SOURCE"|"$FAIL_BACKUP") exit 1;; esac\nexec /bin/mv "$@"\n',
+    { mode: 0o755 },
+  );
+  const result = spawnSync("bash", f.args, {
+    env: { ...f.env, FAIL_SOURCE: f.stage, FAIL_BACKUP: f.backup },
+  });
+  expect(result.status).toBe(1);
+  expect(existsSync(f.target)).toBe(false);
+  expect(readFileSync(path.join(f.backup, "version"), "utf8")).toBe("old");
+  expect(readFileSync(path.join(f.stage, "version"), "utf8")).toBe("new");
+  expect(existsSync(f.job)).toBe(false);
+  expect(existsSync(f.lock)).toBe(false);
+  expect(readFileSync(path.join(f.root, "last-install-error.log"), "utf8")).toContain("restore");
 });
 
 test.skipIf(process.platform !== "darwin")(
@@ -76,7 +132,7 @@ test.skipIf(process.platform !== "darwin")(
       plist,
       JSON.stringify({
         Label: label,
-        ProgramArguments: ["/bin/bash", ...f.args],
+        ProgramArguments: ["/bin/bash", ...f.args, `${domain}/${label}`],
         RunAtLoad: true,
         EnvironmentVariables: { PATH: f.env.PATH, OPEN_RECORD: f.env.OPEN_RECORD },
         StandardOutPath: path.join(f.job, "install.log"),
@@ -94,13 +150,18 @@ test.skipIf(process.platform !== "darwin")(
       await expect.poll(() => existsSync(path.join(f.job, "ready"))).toBe(true);
       expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("old");
       writeFileSync(path.join(f.job, "go"), "install");
+      await expect.poll(() => existsSync(f.job), { timeout: 5000 }).toBe(false);
       await expect
-        .poll(() => readFileSync(path.join(f.job, "status"), "utf8"), { timeout: 5000 })
-        .toBe("SUCCESS\n");
+        .poll(() => spawnSync("/bin/launchctl", ["print", `${domain}/${label}`]).status, {
+          timeout: 5000,
+        })
+        .not.toBe(0);
+      expect(existsSync(f.lock)).toBe(false);
+      expect(existsSync(path.dirname(f.stage))).toBe(false);
       expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("new");
       expect(readFileSync(path.join(f.backup, "version"), "utf8")).toBe("old");
     } finally {
-      execFileSync("/bin/launchctl", ["bootout", `${domain}/${label}`]);
+      spawnSync("/bin/launchctl", ["bootout", `${domain}/${label}`]);
     }
   },
 );

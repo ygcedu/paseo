@@ -49,7 +49,7 @@ prepare() {
   /usr/bin/plutil -insert Label -string "$label" "$plist"
   /usr/bin/plutil -insert ProgramArguments -array "$plist"
   index=0
-  for argument in /bin/bash "$job/install.sh" --install "$staged_app" "$target" "$backup" "$job" "$lock"; do
+  for argument in /bin/bash "$job/install.sh" --install "$staged_app" "$target" "$backup" "$job" "$lock" "$domain/$label"; do
     /usr/bin/plutil -insert "ProgramArguments.$index" -string "$argument" "$plist"
     index=$((index + 1))
   done
@@ -69,14 +69,18 @@ prepare() {
   # The independent process must acknowledge startup before it may quit Paseo.
   touch "$job/go"
   handed_off=true
-  echo "Installer handed off to macOS. Status: $job/status"
+  echo "Installer handed off to macOS. Temporary files and job registration will be removed when finished."
 }
 
 cleanup_prepare() {
   result=$?
   trap - EXIT
+  set +e
   if [[ "$handed_off" == false ]]; then
     if [[ "$submitted" == true ]]; then /bin/launchctl bootout "$domain/$label" || true; fi
+    if [[ -f "$job/install.log" ]]; then cp "$job/install.log" "$(dirname "$job")/last-install-error.log"; fi
+    [[ ! -d "$job" ]] || rm -rf -- "$job"
+    rmdir "$(dirname "$job")" 2>/dev/null || true
     [[ -z "$staging" ]] || rm -rf "$staging"
     rmdir "$lock"
   fi
@@ -96,6 +100,7 @@ target=$2
 backup=$3
 job=$4
 lock=$5
+service=${6:-}
 replacing=false
 
 status() {
@@ -106,17 +111,28 @@ status() {
 cleanup() {
   result=$?
   trap - EXIT
+  # Cleanup must continue even if one filesystem operation fails.
+  set +e
+  preserve_staging=false
   if [[ "$result" -ne 0 ]]; then
     if [[ "$replacing" == true && ! -e "$target" && -d "$backup" ]]; then
       if ! mv "$backup" "$target"; then
         status "FAILED: restore $backup to $target manually; staging preserved at $staged_app"
-        exit "$result"
+        preserve_staging=true
       fi
     fi
-    status "FAILED: see install.log; previous installation preserved"
+    if [[ "$preserve_staging" == false ]]; then status "FAILED: previous installation preserved"; fi
+    error_log="$(dirname "$job")/last-install-error.log"
+    { [[ ! -f "$job/install.log" ]] || cat "$job/install.log"; cat "$job/status"; } > "$error_log"
+  else
+    rm -f -- "$(dirname "$job")/last-install-error.log"
   fi
-  rm -rf "$(dirname "$staged_app")"
+  if [[ "$preserve_staging" == false ]]; then rm -rf "$(dirname "$staged_app")"; fi
+  rm -rf -- "$job"
+  rmdir "$(dirname "$job")" 2>/dev/null || true
   rmdir "$lock"
+  # bootout terminates this job too, so it must be the final cleanup operation.
+  if [[ -n "$service" ]]; then exec /bin/launchctl bootout "$service"; fi
   exit "$result"
 }
 trap cleanup EXIT
@@ -160,4 +176,10 @@ fi
 mv "$staged_app" "$target"
 status "Installed; backup: $backup"
 open "$target"
+for previous in "$target".previous-[0-9]*; do
+  [[ "$previous" != "$backup" && -d "$previous" && ! -L "$previous" ]] || continue
+  if ! rm -rf -- "$previous"; then
+    echo "Warning: could not remove older backup $previous" >&2
+  fi
+done
 status "SUCCESS"

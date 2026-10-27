@@ -58,12 +58,16 @@ minutes, replaces the bundle, and reopens it. Quitting can stop the desktop-mana
 daemon and its agents. The job survives the workspace terminal closing; logout,
 shutdown, and forced termination can still interrupt it.
 
-Logs and a `status` file stay under `~/Library/Logs/Paseo/local-installs/`, in a
-separate directory per run. Old bundles are preserved at
-`/Applications/Paseo.app.previous-<timestamp>`. A failed replacement restores the
-old bundle. The command requires write access to `/Applications` and an active
+The installer removes its task directory (including the script copy, plist,
+log and handoff markers), staging directory, lock, and `launchd` registration
+when finished. Failures overwrite a single
+`~/Library/Logs/Paseo/local-installs/last-install-error.log`; a successful run
+removes that file. The previous bundle is preserved at
+`/Applications/Paseo.app.previous-<timestamp>`. After installation and the reopen
+request succeed, older timestamped backups are removed. A failed replacement
+restores the old bundle and leaves older backups intact. The command requires write access to `/Applications` and an active
 macOS GUI login. A lock rejects concurrent installs; after a forced interruption,
-check the job log and restore its backup if necessary before removing
+check the remaining job log and restore its backup if necessary before removing
 `/Applications/.paseo-local-install-lock` and retrying.
 
 ## Nix desktop package
