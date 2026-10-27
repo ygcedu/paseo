@@ -49,6 +49,23 @@ native dependencies match the target. For Intel Macs or other architectures, use
 `npm run build:desktop -- --publish never` with the appropriate electron-builder flags.
 Official signing and release builds stay in the desktop release workflow.
 
+Run `install-macos` from the workspace run menu, or
+`bash packages/desktop/scripts/install-local-macos.sh` from Terminal, to install
+the newest local DMG matching the machine's architecture into `/Applications`.
+The command stages and verifies the bundle before handing installation to a
+user `launchd` job. The job then requests a normal Paseo quit, waits up to two
+minutes, replaces the bundle, and reopens it. Quitting can stop the desktop-managed
+daemon and its agents. The job survives the workspace terminal closing; logout,
+shutdown, and forced termination can still interrupt it.
+
+Logs and a `status` file stay under `~/Library/Logs/Paseo/local-installs/`, in a
+separate directory per run. Old bundles are preserved at
+`/Applications/Paseo.app.previous-<timestamp>`. A failed replacement restores the
+old bundle. The command requires write access to `/Applications` and an active
+macOS GUI login. A lock rejects concurrent installs; after a forced interruption,
+check the job log and restore its backup if necessary before removing
+`/Applications/.paseo-local-install-lock` and retrying.
+
 ## Nix desktop package
 
 The flake exposes `packages.<system>.desktop` on Linux and macOS:

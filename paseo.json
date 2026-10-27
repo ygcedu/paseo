@@ -36,6 +36,9 @@
     "build-macos": {
       "command": "npm run build:desktop:mac"
     },
+    "install-macos": {
+      "command": "bash ./packages/desktop/scripts/install-local-macos.sh"
+    },
     "build-windows": {
       "command": "npm run build:desktop:windows"
     }
