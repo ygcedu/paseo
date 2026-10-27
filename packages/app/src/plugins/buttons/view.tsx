@@ -674,7 +674,7 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[1],
     borderRadius: theme.borderRadius.md,
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.borderAccent,
+    borderColor: theme.colors.foregroundExtraMuted,
   },
   button: { flexShrink: 1, minWidth: 0, maxWidth: 160 },
   active: { backgroundColor: theme.colors.surface2 },

@@ -202,6 +202,11 @@ import {
 import { findAdjacentPane } from "@/utils/split-navigation";
 import { supportsDesktopPaneSplits, useIsCompactFormFactor } from "@/constants/layout";
 import { getIsElectron, isNative, isWeb } from "@/constants/platform";
+import { useHasOwnedWindowChromeObstruction } from "@/utils/desktop-window";
+import {
+  TOOL_WINDOW_RAIL_WIDTH,
+  TOOL_WINDOW_PANEL_INSET,
+} from "@/workspace-tabs/tool-windows/geometry";
 import { buildHostRootRoute, buildSettingsHostRoute } from "@/utils/host-routes";
 import { useWorkspaceTerminals } from "@/screens/workspace/terminals/use-workspace-terminals";
 import type { TerminalProfile } from "@getpaseo/protocol/messages";
@@ -1056,6 +1061,7 @@ function WorkspaceScreenContent({
   const _insets = useSafeAreaInsets();
   const toast = useToast();
   const isMobile = useIsCompactFormFactor();
+  const hasRightWindowControls = useHasOwnedWindowChromeObstruction("top-right");
 
   const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
   const toggleFocusMode = usePanelStore((state) => state.toggleFocusMode);
@@ -3370,6 +3376,9 @@ function WorkspaceScreenContent({
             </>
           }
           right={headerRight}
+          rightStyle={
+            isWeb && !isMobile && !hasRightWindowControls ? styles.alignedHeaderRight : undefined
+          }
         />
       ) : null,
     [
@@ -3379,6 +3388,7 @@ function WorkspaceScreenContent({
       handleCopyWorkspacePath,
       handleOpenSetupTab,
       headerRight,
+      hasRightWindowControls,
       isWorkspaceHeaderLoading,
       isMobile,
       normalizedServerId,
@@ -3912,6 +3922,10 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.surface3,
     opacity: 0.25,
+  },
+  alignedHeaderRight: {
+    // ScreenHeader already reserves spacing[2]; match the panel edge inside the right rail.
+    marginRight: TOOL_WINDOW_RAIL_WIDTH + TOOL_WINDOW_PANEL_INSET - theme.spacing[2],
   },
   headerRight: {
     flexDirection: "row",

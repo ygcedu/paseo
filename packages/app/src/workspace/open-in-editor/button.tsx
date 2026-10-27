@@ -224,7 +224,9 @@ export function WorkspaceOpenInEditorButton({
 
   return (
     <View style={styles.row}>
-      <View style={styles.splitButton}>
+      <View
+        style={[styles.splitButton, hideLabels && targets.length === 1 && styles.iconOnlyButton]}
+      >
         <Pressable
           testID="workspace-open-in-editor-primary"
           style={primaryPressableStyle}
@@ -305,8 +307,11 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "stretch",
     borderRadius: theme.borderRadius.md,
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.borderAccent,
+    borderColor: theme.colors.foregroundExtraMuted,
     overflow: "hidden",
+  },
+  iconOnlyButton: {
+    borderColor: "transparent",
   },
   splitButtonPrimary: {
     paddingHorizontal: {
@@ -355,7 +360,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     borderLeftWidth: theme.borderWidth[1],
-    borderLeftColor: theme.colors.borderAccent,
+    borderLeftColor: theme.colors.foregroundExtraMuted,
   },
   splitButtonCaretHovered: {
     backgroundColor: theme.colors.surface2,

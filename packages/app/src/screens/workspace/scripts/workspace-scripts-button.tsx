@@ -863,7 +863,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "stretch",
     borderRadius: theme.borderRadius.md,
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.borderAccent,
+    borderColor: theme.colors.foregroundExtraMuted,
     overflow: "hidden",
   },
   ghostButtonFrame: {
@@ -928,7 +928,7 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 0,
     paddingLeft: theme.spacing[2],
     borderLeftWidth: theme.borderWidth[1],
-    borderLeftColor: theme.colors.borderAccent,
+    borderLeftColor: theme.colors.foregroundExtraMuted,
   },
   scriptHeader: {
     flexDirection: "row",
