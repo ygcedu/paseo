@@ -41,6 +41,9 @@
     },
     "build-windows": {
       "command": "npm run build:desktop:windows"
+    },
+    "sync-latest-release": {
+      "command": "paseo run --provider codex --mode full-access --no-wait --title '同步最新稳定版' '把当前分支的本地定制迁移到 Paseo 最新稳定版。先记录当前分支及提交 SHA，读取 AGENTS.md 和相关 docs；从 upstream 获取 tag，只考虑 vX.Y.Z 正式版本。若当前分支已基于最新稳定 tag，报告无需升级。否则识别当前分支相对上游的本地提交（排除已在新 tag 中的提交），通过 Paseo 创建基于该 tag 的同名本地版本分支，按顺序 cherry-pick 本地提交并解决冲突，保留新版上游修复与本地功能。已有目标分支或工作区不干净时先报告，不覆盖、不重置、不丢弃改动。迁移时保留此升级指令，按仓库要求构建依赖、运行 typecheck、lint 及相关单文件测试，报告新分支、worktree 路径、迁移提交和检查结果。不要推送、发布、安装或重启守护进程。'"
     }
   }
 }
