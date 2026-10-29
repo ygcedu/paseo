@@ -20,16 +20,45 @@ function fixture() {
   for (const directory of [stage, target, job, lock, bin])
     mkdirSync(directory, { recursive: true });
   writeFileSync(path.join(stage, "version"), "new");
+  const cli = path.join(stage, "Contents", "Resources", "bin", "paseo");
+  mkdirSync(path.dirname(cli), { recursive: true });
+  writeFileSync(
+    path.join(stage, "Contents", "Info.plist"),
+    JSON.stringify({ CFBundleShortVersionString: "0.14.0" }),
+  );
+  writeFileSync(
+    cli,
+    '#!/bin/sh\nif [ "$2" = stop ]; then printf "%s\\n" "$*" > "$DAEMON_RECORD"; exit "${STOP_EXIT:-0}"; fi\nif [ "$2" = start ]; then command -v test-provider >/dev/null || exit 97; printf "%s\\n" "$*" > "$DAEMON_START_RECORD"; exit "${START_EXIT:-0}"; fi\nprintf \'{"daemonVersion":"0.14.0"}\\n\'\n',
+    { mode: 0o755 },
+  );
+
   writeFileSync(path.join(target, "version"), "old");
   writeFileSync(path.join(job, "go"), "install");
   writeFileSync(path.join(bin, "ps"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-  writeFileSync(path.join(bin, "open"), '#!/bin/sh\nprintf "%s" "$1" > "$OPEN_RECORD"\n', {
-    mode: 0o755,
-  });
+  writeFileSync(
+    path.join(bin, "open"),
+    '#!/bin/sh\n[ -f "$DAEMON_START_RECORD" ] || exit 99\nprintf "%s" "$1" > "$OPEN_RECORD"\n',
+    {
+      mode: 0o755,
+    },
+  );
+  const shell = path.join(bin, "login-shell");
+  writeFileSync(
+    shell,
+    '#!/bin/sh\n[ "$1" = -ilc ] || exit 98\nexport PATH="$PROVIDER_BIN:$PATH"\nexec /bin/bash -c "$2"\n',
+    { mode: 0o755 },
+  );
+  const providerBin = path.join(root, "provider-bin");
+  mkdirSync(providerBin);
+  writeFileSync(path.join(providerBin, "test-provider"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   const env = {
     ...process.env,
     PATH: `${bin}:/usr/bin:/bin`,
+    SHELL: shell,
+    PROVIDER_BIN: providerBin,
     OPEN_RECORD: path.join(root, "opened"),
+    DAEMON_RECORD: path.join(root, "daemon-stopped"),
+    DAEMON_START_RECORD: path.join(root, "daemon-started"),
   };
   const args = [worker, "--install", stage, target, backup, job, lock];
   return { root, stage, target, backup, job, lock, bin, env, args };
@@ -134,7 +163,14 @@ test.skipIf(process.platform !== "darwin")(
         Label: label,
         ProgramArguments: ["/bin/bash", ...f.args, `${domain}/${label}`],
         RunAtLoad: true,
-        EnvironmentVariables: { PATH: f.env.PATH, OPEN_RECORD: f.env.OPEN_RECORD },
+        EnvironmentVariables: {
+          PATH: f.env.PATH,
+          SHELL: f.env.SHELL,
+          PROVIDER_BIN: f.env.PROVIDER_BIN,
+          OPEN_RECORD: f.env.OPEN_RECORD,
+          DAEMON_START_RECORD: f.env.DAEMON_START_RECORD,
+          DAEMON_RECORD: f.env.DAEMON_RECORD,
+        },
         StandardOutPath: path.join(f.job, "install.log"),
         StandardErrorPath: path.join(f.job, "install.log"),
       }),
@@ -212,4 +248,50 @@ test("requests a normal quit and waits before replacing the running application"
   } finally {
     child.kill("SIGKILL");
   }
+});
+
+test("stops the production daemon before installation and aborts when it cannot stop", () => {
+  const f = fixture();
+  const result = spawnSync("bash", f.args, { env: { ...f.env, STOP_EXIT: "1", HOME: f.root } });
+  expect(result.status).toBe(1);
+  expect(readFileSync(f.env.DAEMON_RECORD, "utf8")).toBe(
+    `daemon stop --home ${f.root}/.paseo --timeout 120\n`,
+  );
+  expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("old");
+  expect(existsSync(f.env.OPEN_RECORD)).toBe(false);
+});
+
+test("does not report success or delete older backups when the daemon version stays old", () => {
+  const f = fixture();
+  const olderBackup = `${f.target}.previous-20261026-120000-1`;
+  mkdirSync(olderBackup);
+  const cli = path.join(f.stage, "Contents", "Resources", "bin", "paseo");
+  writeFileSync(
+    cli,
+    '#!/bin/sh\nif [ "$2" = stop ]; then exit 0; fi\nif [ "$2" = start ]; then touch "$DAEMON_START_RECORD"; exit 0; fi\nprintf \'%s\\n\' \'{"daemonVersion":"0.13.2"}\'\n',
+    { mode: 0o755 },
+  );
+  writeFileSync(path.join(f.bin, "sleep"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const result = spawnSync("bash", f.args, { env: f.env });
+  expect(result.status).toBe(1);
+  expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("new");
+  expect(existsSync(olderBackup)).toBe(true);
+  expect(readFileSync(path.join(f.root, "last-install-error.log"), "utf8")).toContain(
+    "new daemon did not become ready",
+  );
+});
+
+test("reports daemon startup failure without reopening the application", () => {
+  const f = fixture();
+  const result = spawnSync("bash", f.args, { env: { ...f.env, START_EXIT: "1", HOME: f.root } });
+  expect(result.status).toBe(1);
+  expect(readFileSync(f.env.DAEMON_START_RECORD, "utf8")).toBe(
+    `daemon start --home ${f.root}/.paseo --timeout 120\n`,
+  );
+  expect(readFileSync(path.join(f.target, "version"), "utf8")).toBe("new");
+  expect(readFileSync(path.join(f.backup, "version"), "utf8")).toBe("old");
+  expect(existsSync(f.env.OPEN_RECORD)).toBe(false);
+  expect(readFileSync(path.join(f.root, "last-install-error.log"), "utf8")).toContain(
+    "Starting the installed daemon",
+  );
 });

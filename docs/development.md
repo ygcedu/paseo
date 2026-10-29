@@ -54,8 +54,12 @@ Run `install-macos` from the workspace run menu, or
 the newest local DMG matching the machine's architecture into `/Applications`.
 The command stages and verifies the bundle before handing installation to a
 user `launchd` job. The job then requests a normal Paseo quit, waits up to two
-minutes, replaces the bundle, and reopens it. Quitting can stop the desktop-managed
-daemon and its agents. The job survives the workspace terminal closing; logout,
+minutes, stops the production daemon in `~/.paseo` (including a separately started
+daemon), replaces the bundle, starts the new daemon with the installed bundled CLI through your interactive
+login shell (so provider paths and credentials load), and
+reopens the app. Running agents are interrupted. This works with Desktop built-in
+daemon management disabled. The installer checks that the
+running daemon reports the installed app version before reporting success. The job survives the workspace terminal closing; logout,
 shutdown, and forced termination can still interrupt it.
 
 The installer removes its task directory (including the script copy, plist,

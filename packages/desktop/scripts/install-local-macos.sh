@@ -55,10 +55,11 @@ prepare() {
   done
   /usr/bin/plutil -insert RunAtLoad -bool true "$plist"
   /usr/bin/plutil -insert EnvironmentVariables -dictionary "$plist"
-  /usr/bin/plutil -insert EnvironmentVariables.PATH -string /usr/bin:/bin:/usr/sbin:/sbin "$plist"
+  /usr/bin/plutil -insert EnvironmentVariables.PATH -string "$PATH" "$plist"
+  /usr/bin/plutil -insert EnvironmentVariables.SHELL -string "${SHELL:-/bin/zsh}" "$plist"
   /usr/bin/plutil -insert StandardOutPath -string "$job/install.log" "$plist"
   /usr/bin/plutil -insert StandardErrorPath -string "$job/install.log" "$plist"
-  echo "Paseo will quit and reopen after installation. Log: $job/install.log"
+  echo "Paseo and the local daemon will stop; running agents will be interrupted. Log: $job/install.log"
   /bin/launchctl bootstrap "$domain" "$plist"
   submitted=true
   for ((attempt=0; attempt<100; attempt++)); do
@@ -121,7 +122,7 @@ cleanup() {
         preserve_staging=true
       fi
     fi
-    if [[ "$preserve_staging" == false ]]; then status "FAILED: previous installation preserved"; fi
+    if [[ "$preserve_staging" == false ]]; then printf '%s\n' "FAILED: installation did not complete" >> "$job/status"; fi
     error_log="$(dirname "$job")/last-install-error.log"
     { [[ ! -f "$job/install.log" ]] || cat "$job/install.log"; cat "$job/status"; } > "$error_log"
   else
@@ -167,6 +168,10 @@ if [[ -n "$pids" ]]; then
   fi
 fi
 
+# Always target the installed app's production home, never the invoking worktree.
+status "Stopping the local daemon"
+"$staged_app/Contents/Resources/bin/paseo" daemon stop --home "$HOME/.paseo" --timeout 120
+
 status "Installing"
 if [[ -e "$target" ]]; then
   [[ ! -e "$backup" ]]
@@ -175,7 +180,21 @@ if [[ -e "$target" ]]; then
 fi
 mv "$staged_app" "$target"
 status "Installed; backup: $backup"
+status "Starting the installed daemon"
+# launchd does not load shell configuration (nvm, Homebrew, provider credentials).
+PASEO_INSTALL_CLI="$target/Contents/Resources/bin/paseo" "${SHELL:-/bin/zsh}" -ilc 'exec "$PASEO_INSTALL_CLI" daemon start --home "$HOME/.paseo" --timeout 120'
 open "$target"
+expected_version=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$target/Contents/Info.plist")
+status "Waiting for daemon $expected_version"
+updated=false
+for ((attempt=0; attempt<30; attempt++)); do
+  if "$target/Contents/Resources/bin/paseo" daemon status --home "$HOME/.paseo" --json > "$job/daemon.json"; then
+    actual_version=$(/usr/bin/plutil -extract daemonVersion raw -o - "$job/daemon.json" 2>/dev/null || true)
+    if [[ "$actual_version" == "$expected_version" ]]; then updated=true; break; fi
+  fi
+  sleep 1
+done
+[[ "$updated" == true ]] || { status "FAILED: new daemon did not become ready; check ~/.paseo/daemon.log"; exit 1; }
 for previous in "$target".previous-[0-9]*; do
   [[ "$previous" != "$backup" && -d "$previous" && ! -L "$previous" ]] || continue
   if ! rm -rf -- "$previous"; then
